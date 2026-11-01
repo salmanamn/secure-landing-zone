@@ -45,3 +45,27 @@ resource "azurerm_subnet_network_security_group_association" "pe" {
   subnet_id                 = azurerm_subnet.private_endpoints.id
   network_security_group_id = azurerm_network_security_group.pe.id
 }
+
+locals {
+  dns_zones = {
+    blob     = "privatelink.blob.core.windows.net"
+    keyvault = "privatelink.vaultcore.azure.net"
+  }
+}
+
+resource "azurerm_private_dns_zone" "this" {
+  for_each            = local.dns_zones
+  name                = each.value
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "this" {
+  for_each              = local.dns_zones
+  name                  = "link-${each.key}"
+  resource_group_name   = var.resource_group_name
+  private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name
+  virtual_network_id    = azurerm_virtual_network.this.id
+  registration_enabled  = false
+  tags                  = var.tags
+}

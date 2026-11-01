@@ -23,3 +23,7 @@ module "network" {
 output "pe_subnet_id" {
   value = module.network.pe_subnet_id
 }
+
+output "private_dns_zone_ids" {
+  value = module.network.private_dns_zone_ids
+}
