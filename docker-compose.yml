@@ -1,0 +1,9 @@
+services:
+  floci-az:
+    image: floci/floci-az:0.12.0
+    container_name: floci-az
+    ports: ["4577:4577"]
+    volumes:
+      - ./data/floci:/app/data
+    environment:
+      FLOCI_AZ_TLS_ENABLED: "true"

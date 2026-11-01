@@ -1,0 +1,6 @@
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+data/
+floci-az.crt
