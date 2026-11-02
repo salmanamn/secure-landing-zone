@@ -28,6 +28,12 @@ variable "keyvault_private_dns_zone_id" {
   type = string
 }
 
+variable "hardened" {
+  description = "true = secure baseline. false = deliberately weak (Prowler 'before')."
+  type        = bool
+  default     = true
+}
+
 variable "soft_delete_days" {
   description = "7-90. Lab uses 7 so names free up quickly after destroy."
   type        = number

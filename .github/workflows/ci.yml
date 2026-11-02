@@ -94,3 +94,14 @@ jobs:
       - name: Conftest gate
         working-directory: envs/local
         run: conftest test plan.json --policy ../../policy/
+
+      - name: Weak plan must FAIL the gate
+        working-directory: envs/local
+        run: |
+          terraform plan -input=false -var hardened=false -out=weak.tfplan
+          terraform show -json weak.tfplan > weak.json
+          if conftest test weak.json --policy ../../policy/; then
+            echo "::error::Weak baseline passed the gate - policies are broken"
+            exit 1
+          fi
+          echo "Gate correctly rejected the weak baseline."

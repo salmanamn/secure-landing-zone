@@ -11,23 +11,22 @@ resource "azurerm_key_vault" "this" {
   tenant_id           = var.tenant_id
   sku_name            = "standard"
 
-  # Authorization: Azure RBAC, not legacy access policies
-  rbac_authorization_enabled = true
+  # Authorization: Azure RBAC when hardened, legacy access policies when weak
+  rbac_authorization_enabled = var.hardened
 
-  # Recovery
-  soft_delete_retention_days = var.soft_delete_days # soft delete itself is always on
-  purge_protection_enabled   = true                 # irreversible once enabled
+  # Recovery. Purge protection is one-way: weak -> hardened works, never back.
+  soft_delete_retention_days = var.soft_delete_days
+  purge_protection_enabled   = var.hardened
 
-  # Nothing else may pull secrets implicitly
   enabled_for_deployment          = false
   enabled_for_disk_encryption     = false
   enabled_for_template_deployment = false
 
   # Exposure
-  public_network_access_enabled = false
+  public_network_access_enabled = var.hardened ? false : true
 
   network_acls {
-    default_action = "Deny"
+    default_action = var.hardened ? "Deny" : "Allow"
     bypass         = "AzureServices"
   }
 
@@ -35,6 +34,7 @@ resource "azurerm_key_vault" "this" {
 }
 
 resource "azurerm_private_endpoint" "vault" {
+  count               = var.hardened ? 1 : 0
   name                = "pe-${var.name}"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -52,4 +52,9 @@ resource "azurerm_private_endpoint" "vault" {
     name                 = "default"
     private_dns_zone_ids = [var.keyvault_private_dns_zone_id]
   }
+}
+
+moved {
+  from = azurerm_private_endpoint.vault
+  to   = azurerm_private_endpoint.vault[0]
 }

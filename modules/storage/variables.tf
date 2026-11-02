@@ -16,6 +16,22 @@ variable "resource_group_name" {
   type = string
 }
 
+variable "pe_subnet_id" {
+  description = "Subnet for the private endpoint"
+  type        = string
+}
+
+variable "blob_private_dns_zone_id" {
+  description = "privatelink.blob.core.windows.net zone ID"
+  type        = string
+}
+
+variable "hardened" {
+  description = "true = secure baseline. false = deliberately weak (Prowler 'before')."
+  type        = bool
+  default     = true
+}
+
 variable "soft_delete_days" {
   type    = number
   default = 7
@@ -29,14 +45,4 @@ variable "soft_delete_days" {
 variable "tags" {
   type    = map(string)
   default = {}
-}
-
-variable "pe_subnet_id" {
-  description = "Subnet for the private endpoint"
-  type        = string
-}
-
-variable "blob_private_dns_zone_id" {
-  description = "privatelink.blob.core.windows.net zone ID"
-  type        = string
 }

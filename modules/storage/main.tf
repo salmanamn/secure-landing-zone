@@ -8,7 +8,6 @@ resource "azurerm_storage_account" "this" {
   #checkov:skip=CKV2_AZURE_1:CMK added in Week 2 (needs Key Vault key + managed identity)
   #checkov:skip=CKV_AZURE_206:LRS is intentional for a disposable lab; prod uses GZRS
   #checkov:skip=CKV_AZURE_33:Queues unused; diagnostics come with the Log Analytics module
-
   name                     = var.name
   resource_group_name      = var.resource_group_name
   location                 = var.location
@@ -16,40 +15,45 @@ resource "azurerm_storage_account" "this" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
-  # Transport
-  https_traffic_only_enabled = true
+  # Transport (Azure no longer accepts TLS < 1.2, so same in both profiles)
+  https_traffic_only_enabled = var.hardened
   min_tls_version            = "TLS1_2"
 
   # Exposure
-  allow_nested_items_to_be_public = false
-  public_network_access_enabled   = false
+  allow_nested_items_to_be_public = var.hardened ? false : true
+  public_network_access_enabled   = var.hardened ? false : true
 
-  # Authentication: Entra ID only
-  shared_access_key_enabled        = false
-  default_to_oauth_authentication  = true
-  local_user_enabled               = false
+  # Authentication: Entra ID only when hardened
+  shared_access_key_enabled        = var.hardened ? false : true
+  default_to_oauth_authentication  = var.hardened
+  local_user_enabled               = var.hardened ? false : true
   cross_tenant_replication_enabled = false
 
-  # Encryption at rest
+  # Encryption at rest: set-at-creation, so NOT toggled (a toggle would need a replace)
   infrastructure_encryption_enabled = true
-  queue_encryption_key_type         = "Account" # lets a future CMK cover queues
-  table_encryption_key_type         = "Account" # ...and tables
+  queue_encryption_key_type         = "Account"
+  table_encryption_key_type         = "Account"
 
   network_rules {
-    default_action = "Deny"
+    default_action = var.hardened ? "Deny" : "Allow"
     bypass         = ["AzureServices"]
   }
 
-  # Recovery: soft delete + versioning (ransomware / accidental delete)
   blob_properties {
-    versioning_enabled = true
+    versioning_enabled = var.hardened
 
-    delete_retention_policy {
-      days = var.soft_delete_days
+    dynamic "delete_retention_policy" {
+      for_each = var.hardened ? [1] : []
+      content {
+        days = var.soft_delete_days
+      }
     }
 
-    container_delete_retention_policy {
-      days = var.soft_delete_days
+    dynamic "container_delete_retention_policy" {
+      for_each = var.hardened ? [1] : []
+      content {
+        days = var.soft_delete_days
+      }
     }
   }
 
@@ -65,13 +69,13 @@ resource "azurerm_storage_account" "this" {
   tags = var.tags
 
   lifecycle {
-    # Set-at-creation only; Azure can't change it later anyway.
-    # floci-az doesn't store it, which would force a replace on every apply.
+    # floci-az doesn't store it (D1); set-at-creation on Azure anyway
     ignore_changes = [infrastructure_encryption_enabled]
   }
 }
 
 resource "azurerm_private_endpoint" "blob" {
+  count               = var.hardened ? 1 : 0
   name                = "pe-${var.name}-blob"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -89,4 +93,10 @@ resource "azurerm_private_endpoint" "blob" {
     name                 = "default"
     private_dns_zone_ids = [var.blob_private_dns_zone_id]
   }
+}
+
+# Adding `count` changed the address: blob -> blob[0]. Same object.
+moved {
+  from = azurerm_private_endpoint.blob
+  to   = azurerm_private_endpoint.blob[0]
 }
