@@ -4,3 +4,5 @@
 *.tfplan
 data/
 floci-az.crt
+plan.json
+tfplan
