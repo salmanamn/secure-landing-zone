@@ -18,7 +18,7 @@ resource "azurerm_storage_account" "this" {
 
   # Transport
   https_traffic_only_enabled = true
-  min_tls_version            = "TLS1_2"
+  min_tls_version            = "TLS1_1"
 
   # Exposure
   allow_nested_items_to_be_public = false
