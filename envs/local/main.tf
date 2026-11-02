@@ -35,11 +35,13 @@ resource "random_string" "suffix" {
 }
 
 module "storage" {
-  source              = "../../modules/storage"
-  name                = "stslzlocal${random_string.suffix.result}"
-  location            = azurerm_resource_group.lab.location
-  resource_group_name = azurerm_resource_group.lab.name
-  tags                = local.tags
+  source                   = "../../modules/storage"
+  name                     = "stslzlocal${random_string.suffix.result}"
+  location                 = azurerm_resource_group.lab.location
+  resource_group_name      = azurerm_resource_group.lab.name
+  pe_subnet_id             = module.network.pe_subnet_id
+  blob_private_dns_zone_id = module.network.private_dns_zone_ids["blob"]
+  tags                     = local.tags
 }
 
 output "storage_account_name" {

@@ -5,6 +5,10 @@ terraform {
 }
 
 resource "azurerm_storage_account" "this" {
+  #checkov:skip=CKV2_AZURE_1:CMK added in Week 2 (needs Key Vault key + managed identity)
+  #checkov:skip=CKV_AZURE_206:LRS is intentional for a disposable lab; prod uses GZRS
+  #checkov:skip=CKV_AZURE_33:Queues unused; diagnostics come with the Log Analytics module
+
   name                     = var.name
   resource_group_name      = var.resource_group_name
   location                 = var.location
@@ -64,5 +68,25 @@ resource "azurerm_storage_account" "this" {
     # Set-at-creation only; Azure can't change it later anyway.
     # floci-az doesn't store it, which would force a replace on every apply.
     ignore_changes = [infrastructure_encryption_enabled]
+  }
+}
+
+resource "azurerm_private_endpoint" "blob" {
+  name                = "pe-${var.name}-blob"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  subnet_id           = var.pe_subnet_id
+  tags                = var.tags
+
+  private_service_connection {
+    name                           = "psc-${var.name}-blob"
+    private_connection_resource_id = azurerm_storage_account.this.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [var.blob_private_dns_zone_id]
   }
 }

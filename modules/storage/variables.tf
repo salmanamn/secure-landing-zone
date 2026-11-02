@@ -30,3 +30,13 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "pe_subnet_id" {
+  description = "Subnet for the private endpoint"
+  type        = string
+}
+
+variable "blob_private_dns_zone_id" {
+  description = "privatelink.blob.core.windows.net zone ID"
+  type        = string
+}
