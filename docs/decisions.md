@@ -12,3 +12,9 @@ not by the emulator.
 ## D2 · queue/table encryption key type = Account
 Account-scoped keys let a future customer-managed key cover queues and tables, not only blob and file.
 This also matches what floci-az returns, so there is no forced replacement.
+
+## D3 · Key Vault data plane needs DNS to the vault
+After create/refresh, azurerm calls the vault data plane (`https://<vault>.vault.azure.net`).
+Locally: floci-az publishes 443 and /etc/hosts maps the vault host to 127.0.0.1.
+Real Azure: the vault is private, so Terraform must run from a network that can reach the
+private endpoint, or temporarily allow the runner IP.

@@ -2,7 +2,9 @@ services:
   floci-az:
     image: floci/floci-az:0.15.0
     container_name: floci-az
-    ports: [ "4577:4577" ]
+    ports:
+      - "4577:4577"
+      - "443:443" # vault data plane: https://<vault>.vault.azure.net
     volumes:
       - ./data/floci:/app/data
       - /var/run/docker.sock:/var/run/docker.sock

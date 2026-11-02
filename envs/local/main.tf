@@ -47,3 +47,21 @@ module "storage" {
 output "storage_account_name" {
   value = module.storage.name
 }
+
+# Reads the tenant/subscription the provider is authenticated to
+data "azurerm_client_config" "current" {}
+
+module "keyvault" {
+  source                       = "../../modules/keyvault"
+  name                         = "kv-slz-local-${random_string.suffix.result}"
+  location                     = azurerm_resource_group.lab.location
+  resource_group_name          = azurerm_resource_group.lab.name
+  tenant_id                    = data.azurerm_client_config.current.tenant_id
+  pe_subnet_id                 = module.network.pe_subnet_id
+  keyvault_private_dns_zone_id = module.network.private_dns_zone_ids["keyvault"]
+  tags                         = local.tags
+}
+
+output "key_vault_name" {
+  value = module.keyvault.name
+}

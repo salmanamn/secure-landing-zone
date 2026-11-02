@@ -15,7 +15,12 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = false # purge protection makes purging impossible anyway
+      recover_soft_deleted_key_vaults = false # never silently resurrect an old vault
+    }
+  }
 
   environment   = "stack"          # custom cloud, not public Azure
   metadata_host = "localhost:4577" # where to find the cloud's endpoints
