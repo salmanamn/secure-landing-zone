@@ -18,3 +18,9 @@ After create/refresh, azurerm calls the vault data plane (`https://<vault>.vault
 Locally: floci-az publishes 443 and /etc/hosts maps the vault host to 127.0.0.1.
 Real Azure: the vault is private, so Terraform must run from a network that can reach the
 private endpoint, or temporarily allow the runner IP.
+
+## D4 · Policy gate runs on a fresh-deploy plan
+The emulator returns defaults for storage security properties (D1). On an existing deployment,
+`change.after` therefore reflects the emulator, not the code. The gate runs on a plan from an
+empty state (a `gate` workspace locally, a clean emulator in CI), so `after` reflects exactly what
+the code would deploy.

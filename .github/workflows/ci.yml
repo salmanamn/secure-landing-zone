@@ -1,0 +1,96 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.17.1"
+  CONFTEST_VERSION: "0.62.0"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  static:
+    name: fmt · validate · checkov · policy tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -recursive -check -diff
+
+      - name: terraform validate
+        working-directory: envs/local
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Checkov
+        run: |
+          pip install --quiet checkov
+          checkov -d . --framework terraform --compact --quiet
+
+      - name: Install Conftest
+        run: |
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin conftest
+
+      - name: Policy unit tests
+        run: conftest verify --policy policy/
+
+  gate:
+    name: plan vs floci-az · conftest gate
+    needs: static
+    runs-on: ubuntu-latest
+    services:
+      floci-az:
+        image: floci/floci-az:0.15.0
+        ports: ["4577:4577"]
+        env:
+          FLOCI_AZ_TLS_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false # keep `show -json` output clean
+
+      - name: Install Conftest
+        run: |
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin conftest
+
+      - name: Wait for floci-az
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4577/_floci/tls-cert -o /dev/null && exit 0
+            sleep 2
+          done
+          echo "::error::floci-az did not start"; exit 1
+
+      - name: Trust floci-az certificate
+        run: ./scripts/trust-floci-cert.sh
+
+      - name: terraform init
+        working-directory: envs/local
+        run: terraform init -input=false
+
+      - name: Plan (fresh emulator = all creates)
+        working-directory: envs/local
+        run: |
+          terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Conftest gate
+        working-directory: envs/local
+        run: conftest test plan.json --policy ../../policy/
