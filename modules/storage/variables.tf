@@ -46,3 +46,15 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "log_analytics_workspace_id" {
+  description = "Destination for resource logs (null when diagnostics are disabled)"
+  type        = string
+  default     = null
+}
+
+variable "diagnostics_enabled" {
+  description = "Send resource logs to Log Analytics"
+  type        = bool
+  default     = true
+}

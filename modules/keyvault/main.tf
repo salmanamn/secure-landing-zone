@@ -58,3 +58,15 @@ moved {
   from = azurerm_private_endpoint.vault
   to   = azurerm_private_endpoint.vault[0]
 }
+
+# Audit every secret/key/certificate access (AuditEvent)
+resource "azurerm_monitor_diagnostic_setting" "vault" {
+  count                      = var.hardened && var.diagnostics_enabled ? 1 : 0
+  name                       = "diag-to-law"
+  target_resource_id         = azurerm_key_vault.this.id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "allLogs"
+  }
+}

@@ -7,7 +7,7 @@ terraform {
 resource "azurerm_storage_account" "this" {
   #checkov:skip=CKV2_AZURE_1:CMK added in Week 2 (needs Key Vault key + managed identity)
   #checkov:skip=CKV_AZURE_206:LRS is intentional for a disposable lab; prod uses GZRS
-  #checkov:skip=CKV_AZURE_33:Queues unused; diagnostics come with the Log Analytics module
+  #checkov:skip=CKV_AZURE_33:Classic queue logging is legacy and queues are unused; resource logs go to Log Analytics (D7)
   name                     = var.name
   resource_group_name      = var.resource_group_name
   location                 = var.location
@@ -95,8 +95,20 @@ resource "azurerm_private_endpoint" "blob" {
   }
 }
 
-# Adding `count` changed the address: blob -> blob[0]. Same object.
+# Adding `count` changed the address: blob -> blob[0]. Tell Terraform it's the same object.
 moved {
   from = azurerm_private_endpoint.blob
   to   = azurerm_private_endpoint.blob[0]
+}
+
+# Resource logs for the blob service: StorageRead / StorageWrite / StorageDelete
+resource "azurerm_monitor_diagnostic_setting" "blob" {
+  count                      = var.hardened && var.diagnostics_enabled ? 1 : 0
+  name                       = "diag-to-law"
+  target_resource_id         = "${azurerm_storage_account.this.id}/blobServices/default"
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "allLogs"
+  }
 }

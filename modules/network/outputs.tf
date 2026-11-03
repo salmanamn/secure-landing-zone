@@ -7,5 +7,6 @@ output "pe_subnet_id" {
 }
 
 output "private_dns_zone_ids" {
-  value = { for k, z in azurerm_private_dns_zone.this : k => z.id }
+  description = "Map: blob/keyvault => zone ID"
+  value       = { for k, z in azurerm_private_dns_zone.this : k => z.id }
 }

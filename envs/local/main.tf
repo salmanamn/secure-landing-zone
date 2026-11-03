@@ -8,6 +8,9 @@ module "stack" {
   name     = "slz-local"
   location = "eastus"
   hardened = var.hardened
+
+  log_analytics_enabled = false # floci-az can't create workspaces (D8)
+
   tags = {
     project    = "secure-landing-zone"
     managed_by = "terraform"

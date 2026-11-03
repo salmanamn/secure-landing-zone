@@ -22,3 +22,9 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "log_analytics_enabled" {
+  description = "Create Log Analytics + diagnostic settings. false only on floci-az, which can't create workspaces (D8)."
+  type        = bool
+  default     = true
+}

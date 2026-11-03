@@ -1,12 +1,12 @@
 # Decisions
 
-## D1 · floci-az does not persist storage security properties
-floci-az 0.15.0 accepts but does not store the security properties of storage accounts AND key vaults (and key vault tags).
-`https_traffic_only_enabled`, `min_tls_version`,
-`allow_nested_items_to_be_public`, `local_user_enabled`, `default_to_oauth_authentication`,
-`infrastructure_encryption_enabled`, `sas_policy`, `identity`. Effects locally: a perpetual in-place
-diff, and a forced replacement on `infrastructure_encryption_enabled`, which is the only attribute in
-`ignore_changes` (it is set-at-creation on Azure anyway).
+## D1 · floci-az does not persist security properties
+floci-az 0.15.0 accepts but does not store the security properties of storage accounts AND key vaults
+(and key vault tags): e.g. `https_traffic_only_enabled`, `min_tls_version`, `allow_nested_items_to_be_public`,
+`local_user_enabled`, `infrastructure_encryption_enabled`, `public_network_access_enabled`,
+`purge_protection_enabled`, `rbac_authorization_enabled`, `network_acls`. Effects locally: a perpetual
+in-place diff, and a forced replacement on `infrastructure_encryption_enabled`, which is the only attribute
+in `ignore_changes` (it is set-at-creation on Azure anyway).
 Security is therefore verified at plan time (Checkov + Conftest) and at runtime on real Azure (Prowler),
 not by the emulator.
 
@@ -21,10 +21,9 @@ Real Azure: the vault is private, so Terraform must run from a network that can 
 private endpoint, or temporarily allow the runner IP.
 
 ## D4 · Policy gate runs on a fresh-deploy plan
-The emulator returns defaults for storage security properties (D1). On an existing deployment,
-`change.after` therefore reflects the emulator, not the code. The gate runs on a plan from an
-empty state (a `gate` workspace locally, a clean emulator in CI), so `after` reflects exactly what
-the code would deploy.
+The emulator returns defaults for security properties (D1). On an existing deployment, `change.after`
+therefore reflects the emulator, not the code. The gate runs on a plan from an empty state (a `gate`
+workspace locally, a clean emulator in CI), so `after` reflects exactly what the code would deploy.
 
 ## D5 · One stack, `hardened` switch
 `modules/stack` holds everything; envs differ only in provider + inputs. `hardened=false` is a
@@ -37,3 +36,14 @@ order on real Azure is weak -> hardened, then destroy.
 floci-az rejects PATCH on key vaults, and D1 makes every existing vault and storage account look
 drifted. Local changes are therefore applied by a full rebuild (`scripts/rebuild-local.sh`), never
 by updating in place. In-place updates are exercised on real Azure only.
+
+## D7 · Resource logs via diagnostic settings, not classic Storage Analytics
+Key Vault (AuditEvent) and blob (StorageRead/Write/Delete) logs go to one Log Analytics workspace using
+category group `allLogs`. Workspace shared keys are disabled (Entra ID only). Diagnostics exist only in the
+hardened profile, so the weak "before" run shows "logging not enabled" findings.
+
+## D8 · Log Analytics is skipped on floci-az
+azurerm always lists `Microsoft.OperationalInsights/deletedWorkspaces` before creating a workspace;
+floci-az 0.15.0 doesn't serve it (404), so workspaces can't be created locally. `log_analytics_enabled = false`
+in envs/local skips the workspace and the diagnostic settings. The code is still scanned by Checkov
+locally and in CI, and is deployed and verified on real Azure.

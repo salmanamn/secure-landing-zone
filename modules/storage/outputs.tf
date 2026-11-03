@@ -6,7 +6,10 @@ output "name" {
   value = azurerm_storage_account.this.name
 }
 
+output "primary_blob_endpoint" {
+  value = azurerm_storage_account.this.primary_blob_endpoint
+}
+
 output "principal_id" {
-  # floci-az doesn't return the managed identity; real Azure does
   value = try(azurerm_storage_account.this.identity[0].principal_id, null)
 }

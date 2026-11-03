@@ -30,15 +30,26 @@ module "network" {
   tags                = var.tags
 }
 
+module "monitoring" {
+  count               = var.log_analytics_enabled ? 1 : 0
+  source              = "../monitoring"
+  name                = var.name
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+  tags                = var.tags
+}
+
 module "storage" {
-  source                   = "../storage"
-  name                     = "st${replace(var.name, "-", "")}${random_string.suffix.result}"
-  location                 = azurerm_resource_group.this.location
-  resource_group_name      = azurerm_resource_group.this.name
-  pe_subnet_id             = module.network.pe_subnet_id
-  blob_private_dns_zone_id = module.network.private_dns_zone_ids["blob"]
-  hardened                 = var.hardened
-  tags                     = var.tags
+  source                     = "../storage"
+  name                       = "st${replace(var.name, "-", "")}${random_string.suffix.result}"
+  location                   = azurerm_resource_group.this.location
+  resource_group_name        = azurerm_resource_group.this.name
+  pe_subnet_id               = module.network.pe_subnet_id
+  blob_private_dns_zone_id   = module.network.private_dns_zone_ids["blob"]
+  log_analytics_workspace_id = var.log_analytics_enabled ? module.monitoring[0].workspace_id : null
+  diagnostics_enabled        = var.log_analytics_enabled
+  hardened                   = var.hardened
+  tags                       = var.tags
 }
 
 module "keyvault" {
@@ -49,6 +60,8 @@ module "keyvault" {
   tenant_id                    = data.azurerm_client_config.current.tenant_id
   pe_subnet_id                 = module.network.pe_subnet_id
   keyvault_private_dns_zone_id = module.network.private_dns_zone_ids["keyvault"]
+  log_analytics_workspace_id   = var.log_analytics_enabled ? module.monitoring[0].workspace_id : null
+  diagnostics_enabled          = var.log_analytics_enabled
   hardened                     = var.hardened
   tags                         = var.tags
 }
