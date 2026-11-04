@@ -9,8 +9,9 @@ variable "location" {
 }
 
 variable "hardened" {
-  description = "No default on purpose: every apply states the profile. Order: false -> true -> destroy (D5)."
+  description = "Secure by default; the weak 'before' profile must be requested with -var hardened=false (D5)."
   type        = bool
+  default     = true
 }
 
 module "stack" {
