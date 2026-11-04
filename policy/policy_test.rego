@@ -11,6 +11,7 @@ good_sa := {
 	"shared_access_key_enabled": false,
 	"infrastructure_encryption_enabled": true,
 	"blob_properties": [{"delete_retention_policy": [{"days": 7}]}],
+	"customer_managed_key": [{"user_assigned_identity_id": "x"}],
 }
 
 good_kv := {
@@ -70,4 +71,9 @@ test_deletes_ignored if {
 		"change": {"actions": ["delete"], "after": null},
 	}]}
 	count(deny) == 0 with input as p
+}
+
+test_missing_cmk_fails if {
+	bad := json.patch(good_sa, [{"op": "remove", "path": "/customer_managed_key"}])
+	count(deny) == 1 with input as plan("azurerm_storage_account", bad)
 }

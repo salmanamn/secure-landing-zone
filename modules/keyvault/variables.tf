@@ -61,3 +61,9 @@ variable "diagnostics_enabled" {
   type        = bool
   default     = true
 }
+
+variable "cmk_expiration_date" {
+  description = "Expiry of the first key version (UTC). Rotation creates new versions before this."
+  type        = string
+  default     = "2027-12-31T00:00:00Z"
+}

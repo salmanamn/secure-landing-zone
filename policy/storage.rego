@@ -55,3 +55,9 @@ deny contains msg if {
 blob_soft_delete_ok(after) if {
 	after.blob_properties[0].delete_retention_policy[0].days >= 7
 }
+
+deny contains msg if {
+	some rc in storage_accounts
+	count(object.get(rc.change.after, "customer_managed_key", [])) == 0
+	msg := sprintf("%s: must be encrypted with a customer-managed key", [rc.address])
+}

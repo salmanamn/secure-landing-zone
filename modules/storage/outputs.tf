@@ -11,5 +11,5 @@ output "primary_blob_endpoint" {
 }
 
 output "principal_id" {
-  value = try(azurerm_storage_account.this.identity[0].principal_id, null)
+  value = azurerm_user_assigned_identity.this.principal_id
 }

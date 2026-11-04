@@ -58,3 +58,20 @@ variable "diagnostics_enabled" {
   type        = bool
   default     = true
 }
+
+variable "key_vault_id" {
+  description = "Vault holding the customer-managed key"
+  type        = string
+}
+
+variable "cmk_key_id" {
+  description = "Versionless key ID for encryption (null when not hardened)"
+  type        = string
+  default     = null
+}
+
+variable "cmk_enabled" {
+  description = "Attach the customer-managed key. false only for floci-az applies (D11)."
+  type        = bool
+  default     = true
+}

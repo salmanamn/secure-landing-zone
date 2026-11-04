@@ -47,3 +47,22 @@ azurerm always lists `Microsoft.OperationalInsights/deletedWorkspaces` before cr
 floci-az 0.15.0 doesn't serve it (404), so workspaces can't be created locally. `log_analytics_enabled = false`
 in envs/local skips the workspace and the diagnostic settings. The code is still scanned by Checkov
 locally and in CI, and is deployed and verified on real Azure.
+
+## D9 · Customer-managed key for storage (hardened only)
+Storage is encrypted with an RSA-3072 key from the project's Key Vault, referenced by its versionless ID so
+Azure's rotation policy (new version 30 days before a 180-day expiry) is picked up automatically. Access uses
+a user-assigned identity with "Key Vault Crypto Service Encryption User" on the vault, created before the
+account. Role definitions are referenced by built-in ID, not name. The deployer gets "Key Vault Crypto
+Officer" to create the key. HSM-backed keys (Premium vault) are skipped for cost (CKV_AZURE_112).
+
+## D10 · Import check disabled on the local provider only
+floci-az has no role-assignment handler; its ARM fallthrough answers 200 to the GET azurerm sends before
+create, so every `azurerm_role_assignment` fails with "already exists". `envs/local` sets
+`skip_import_check_on_create_and_allow_overwriting_existing_resources = true`. Never set it in envs/azure:
+there it would silently take over existing resources instead of failing.
+
+## D11 · CMK is planned everywhere but not attached on floci-az applies
+Before attaching a CMK, azurerm reads the vault and requires purge protection + soft delete. floci-az
+returns them as false (D1), so the attach fails locally. Plans (gate, CI) keep the CMK, so the policy
+rule is enforced; `rebuild-local.sh` applies with `storage_cmk_enabled=false`. The key, its rotation
+policy and both role assignments are still created locally. The attach itself is verified on real Azure.

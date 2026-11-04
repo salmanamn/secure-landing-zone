@@ -4,8 +4,25 @@ terraform {
   }
 }
 
+data "azurerm_client_config" "current" {}
+
+# Identity the storage account uses to reach its key. User-assigned, so it can be
+# granted access BEFORE the account exists (a system identity only exists after).
+resource "azurerm_user_assigned_identity" "this" {
+  name                = "id-${var.name}"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+}
+
+resource "azurerm_role_assignment" "cmk" {
+  count              = var.hardened ? 1 : 0
+  scope              = var.key_vault_id
+  role_definition_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/e147488a-f6f5-4113-8e2d-b22465e65bf6" # Key Vault Crypto Service Encryption User
+  principal_id       = azurerm_user_assigned_identity.this.principal_id
+}
+
 resource "azurerm_storage_account" "this" {
-  #checkov:skip=CKV2_AZURE_1:CMK added in Week 2 (needs Key Vault key + managed identity)
   #checkov:skip=CKV_AZURE_206:LRS is intentional for a disposable lab; prod uses GZRS
   #checkov:skip=CKV_AZURE_33:Classic queue logging is legacy and queues are unused; resource logs go to Log Analytics (D7)
   name                     = var.name
@@ -63,7 +80,17 @@ resource "azurerm_storage_account" "this" {
   }
 
   identity {
-    type = "SystemAssigned"
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.this.id]
+  }
+
+  # Encrypt with our key instead of a Microsoft-managed one (hardened only)
+  dynamic "customer_managed_key" {
+    for_each = var.hardened && var.cmk_enabled ? [1] : []
+    content {
+      key_vault_key_id          = var.cmk_key_id
+      user_assigned_identity_id = azurerm_user_assigned_identity.this.id
+    }
   }
 
   tags = var.tags
@@ -72,6 +99,9 @@ resource "azurerm_storage_account" "this" {
     # floci-az doesn't store it (D1); set-at-creation on Azure anyway
     ignore_changes = [infrastructure_encryption_enabled]
   }
+
+  # The identity must be allowed to use the key before the account is encrypted with it
+  depends_on = [azurerm_role_assignment.cmk]
 }
 
 resource "azurerm_private_endpoint" "blob" {

@@ -4,6 +4,8 @@ terraform {
   }
 }
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_key_vault" "this" {
   name                = var.name
   location            = var.location
@@ -69,4 +71,41 @@ resource "azurerm_monitor_diagnostic_setting" "vault" {
   enabled_log {
     category_group = "allLogs"
   }
+}
+
+# --- Customer-managed key for storage (hardened only) ---
+
+# Built-in role IDs are the same in every tenant
+locals {
+  role_crypto_officer = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/14b46e9e-c2b7-41b4-b07b-48a6ebf60603" # Key Vault Crypto Officer
+}
+
+# Whoever runs Terraform needs data-plane rights to create the key (RBAC vault)
+resource "azurerm_role_assignment" "deployer_crypto_officer" {
+  count              = var.hardened ? 1 : 0
+  scope              = azurerm_key_vault.this.id
+  role_definition_id = local.role_crypto_officer
+  principal_id       = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_key_vault_key" "cmk" {
+  #checkov:skip=CKV_AZURE_112:HSM-backed keys need a Premium vault; Standard is enough for a lab
+  count           = var.hardened ? 1 : 0
+  name            = "cmk-storage"
+  key_vault_id    = azurerm_key_vault.this.id
+  key_type        = "RSA"
+  key_size        = 3072
+  key_opts        = ["wrapKey", "unwrapKey"]
+  expiration_date = var.cmk_expiration_date
+
+  # Azure rotates the key automatically; storage follows because it uses the versionless ID
+  rotation_policy {
+    automatic {
+      time_before_expiry = "P30D"
+    }
+    expire_after         = "P180D"
+    notify_before_expiry = "P29D"
+  }
+
+  depends_on = [azurerm_role_assignment.deployer_crypto_officer]
 }

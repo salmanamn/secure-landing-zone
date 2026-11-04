@@ -28,3 +28,9 @@ variable "log_analytics_enabled" {
   type        = bool
   default     = true
 }
+
+variable "storage_cmk_enabled" {
+  description = "Attach the CMK to storage. false only for floci-az applies (D11)."
+  type        = bool
+  default     = true
+}

@@ -39,19 +39,6 @@ module "monitoring" {
   tags                = var.tags
 }
 
-module "storage" {
-  source                     = "../storage"
-  name                       = "st${replace(var.name, "-", "")}${random_string.suffix.result}"
-  location                   = azurerm_resource_group.this.location
-  resource_group_name        = azurerm_resource_group.this.name
-  pe_subnet_id               = module.network.pe_subnet_id
-  blob_private_dns_zone_id   = module.network.private_dns_zone_ids["blob"]
-  log_analytics_workspace_id = var.log_analytics_enabled ? module.monitoring[0].workspace_id : null
-  diagnostics_enabled        = var.log_analytics_enabled
-  hardened                   = var.hardened
-  tags                       = var.tags
-}
-
 module "keyvault" {
   source                       = "../keyvault"
   name                         = "kv-${var.name}-${random_string.suffix.result}"
@@ -64,4 +51,20 @@ module "keyvault" {
   diagnostics_enabled          = var.log_analytics_enabled
   hardened                     = var.hardened
   tags                         = var.tags
+}
+
+module "storage" {
+  source                     = "../storage"
+  name                       = "st${replace(var.name, "-", "")}${random_string.suffix.result}"
+  location                   = azurerm_resource_group.this.location
+  resource_group_name        = azurerm_resource_group.this.name
+  pe_subnet_id               = module.network.pe_subnet_id
+  blob_private_dns_zone_id   = module.network.private_dns_zone_ids["blob"]
+  log_analytics_workspace_id = var.log_analytics_enabled ? module.monitoring[0].workspace_id : null
+  diagnostics_enabled        = var.log_analytics_enabled
+  key_vault_id               = module.keyvault.id
+  cmk_key_id                 = module.keyvault.cmk_key_id
+  cmk_enabled                = var.storage_cmk_enabled
+  hardened                   = var.hardened
+  tags                       = var.tags
 }

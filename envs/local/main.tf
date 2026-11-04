@@ -3,11 +3,17 @@ variable "hardened" {
   default = true
 }
 
+variable "storage_cmk_enabled" {
+  type    = bool
+  default = true # plans/CI keep the CMK; rebuild-local.sh passes false (D11)
+}
+
 module "stack" {
-  source   = "../../modules/stack"
-  name     = "slz-local"
-  location = "eastus"
-  hardened = var.hardened
+  source              = "../../modules/stack"
+  name                = "slz-local"
+  location            = "eastus"
+  hardened            = var.hardened
+  storage_cmk_enabled = var.storage_cmk_enabled
 
   log_analytics_enabled = false # floci-az can't create workspaces (D8)
 

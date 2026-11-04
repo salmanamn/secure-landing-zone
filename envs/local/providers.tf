@@ -15,9 +15,13 @@ terraform {
 
 provider "azurerm" {
   features {
+    # floci-az answers 200 to any unknown path, so azurerm's "already exists?" check always
+    # trips (D10). Local emulator only; never on real Azure, where it would overwrite resources.
+    skip_import_check_on_create_and_allow_overwriting_existing_resources = true
+
     key_vault {
-      purge_soft_delete_on_destroy    = false # purge protection makes purging impossible anyway
-      recover_soft_deleted_key_vaults = false # never silently resurrect an old vault
+      purge_soft_delete_on_destroy    = false
+      recover_soft_deleted_key_vaults = false
     }
   }
 
