@@ -14,11 +14,16 @@ not by the emulator.
 Account-scoped keys let a future customer-managed key cover queues and tables, not only blob and file.
 This also matches what floci-az returns, so there is no forced replacement.
 
-## D3 · Key Vault data plane needs DNS to the vault
-After create/refresh, azurerm calls the vault data plane (`https://<vault>.vault.azure.net`).
-Locally: floci-az publishes 443 and /etc/hosts maps the vault host to 127.0.0.1.
-Real Azure: the vault is private, so Terraform must run from a network that can reach the
-private endpoint, or temporarily allow the runner IP.
+## D3 · Terraform never needs the vault data plane
+After create/refresh, `azurerm_key_vault_key` calls `https://<vault>.vault.azure.net`. Locally floci-az publishes
+443 and /etc/hosts maps the vault host (rebuild-local.sh). On real Azure the vault is private, and temporarily
+allowing the runner IP would violate our own Deny policy (`publicNetworkAccess` must be Disabled).
+The CMK is therefore created through ARM (`Microsoft.KeyVault/vaults/keys` in a template deployment): firewall rules
+don't apply to the control plane, and the deployer needs `keys/write` (Owner / Key Vault Contributor) instead of a
+data-plane role. Trade-offs: ARM keys are create-only (changes need a new key name), ARM can't delete keys
+(`delete_nested_items_during_deletion = false`; the key goes with the vault), and Checkov's key checks no longer
+apply. `azurerm_storage_account` data-plane checks are off (`data_plane_available = false`). Running Terraform inside
+the VNet (self-hosted runner) remains the pattern for data-plane objects such as secrets.
 
 ## D4 · Policy gate runs on a fresh-deploy plan
 The emulator returns defaults for security properties (D1). On an existing deployment, `change.after`

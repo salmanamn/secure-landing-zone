@@ -4,8 +4,6 @@ terraform {
   }
 }
 
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_key_vault" "this" {
   name                = var.name
   location            = var.location
@@ -74,38 +72,55 @@ resource "azurerm_monitor_diagnostic_setting" "vault" {
 }
 
 # --- Customer-managed key for storage (hardened only) ---
+# Created through ARM (control plane), not the vault data plane: the vault's firewall and
+# private endpoint don't apply, so Terraform needs no network path to the vault and no
+# data-plane role (D3). Off on floci-az together with role assignments (D10).
+resource "azurerm_resource_group_template_deployment" "cmk" {
+  count               = var.hardened && var.role_assignments_enabled ? 1 : 0
+  name                = "cmk-storage"
+  resource_group_name = var.resource_group_name
+  deployment_mode     = "Incremental"
 
-# Built-in role IDs are the same in every tenant
-locals {
-  role_crypto_officer = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/14b46e9e-c2b7-41b4-b07b-48a6ebf60603" # Key Vault Crypto Officer
-}
+  parameters_content = jsonencode({
+    vaultName = { value = azurerm_key_vault.this.name }
+    expiresOn = { value = var.cmk_expiration_date }
+  })
 
-# Whoever runs Terraform needs data-plane rights to create the key (RBAC vault)
-resource "azurerm_role_assignment" "deployer_crypto_officer" {
-  count              = var.hardened && var.role_assignments_enabled ? 1 : 0
-  scope              = azurerm_key_vault.this.id
-  role_definition_id = local.role_crypto_officer
-  principal_id       = data.azurerm_client_config.current.object_id
-}
-
-resource "azurerm_key_vault_key" "cmk" {
-  #checkov:skip=CKV_AZURE_112:HSM-backed keys need a Premium vault; Standard is enough for a lab
-  count           = var.hardened && var.role_assignments_enabled ? 1 : 0
-  name            = "cmk-storage"
-  key_vault_id    = azurerm_key_vault.this.id
-  key_type        = "RSA"
-  key_size        = 3072
-  key_opts        = ["wrapKey", "unwrapKey"]
-  expiration_date = var.cmk_expiration_date
-
-  # Azure rotates the key automatically; storage follows because it uses the versionless ID
-  rotation_policy {
-    automatic {
-      time_before_expiry = "P30D"
+  template_content = jsonencode({
+    "$schema"      = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+    contentVersion = "1.0.0.0"
+    parameters = {
+      vaultName = { type = "string" }
+      expiresOn = { type = "string" }
     }
-    expire_after         = "P180D"
-    notify_before_expiry = "P29D"
-  }
+    resources = [
+      {
+        type       = "Microsoft.KeyVault/vaults/keys"
+        apiVersion = "2024-11-01"
+        name       = "[format('{0}/cmk-storage', parameters('vaultName'))]"
+        properties = {
+          kty        = "RSA"
+          keySize    = 3072
+          keyOps     = ["wrapKey", "unwrapKey"]
+          attributes = { exp = "[dateTimeToEpoch(parameters('expiresOn'))]" }
 
-  depends_on = [azurerm_role_assignment.deployer_crypto_officer]
+          # Same policy as before: rotate 30 days before a 180-day expiry; storage follows
+          # because it uses the versionless URI
+          rotationPolicy = {
+            attributes = { expiryTime = "P180D" }
+            lifetimeActions = [
+              { trigger = { timeBeforeExpiry = "P30D" }, action = { type = "rotate" } },
+              { trigger = { timeBeforeExpiry = "P29D" }, action = { type = "notify" } },
+            ]
+          }
+        }
+      }
+    ]
+    outputs = {
+      keyUri = {
+        type  = "string"
+        value = "[reference(resourceId('Microsoft.KeyVault/vaults/keys', parameters('vaultName'), 'cmk-storage'), '2024-11-01').keyUri]"
+      }
+    }
+  })
 }

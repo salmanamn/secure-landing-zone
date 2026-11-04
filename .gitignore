@@ -8,3 +8,6 @@ plan.json
 tfplan
 weak.json
 graph.svg
+*.tfvars
+!*.tfvars.example
+weak.tfplan

@@ -11,6 +11,6 @@ output "vault_uri" {
 }
 
 output "cmk_key_id" {
-  description = "Versionless key ID (enables auto-rotation for consumers); null when not hardened"
-  value       = try(azurerm_key_vault_key.cmk[0].versionless_id, null)
+  description = "Versionless key URI (enables auto-rotation for consumers); null when not hardened"
+  value       = try(jsondecode(azurerm_resource_group_template_deployment.cmk[0].output_content).keyUri.value, null)
 }
