@@ -67,3 +67,9 @@ variable "cmk_expiration_date" {
   type        = string
   default     = "2027-12-31T00:00:00Z"
 }
+
+variable "role_assignments_enabled" {
+  description = "Create RBAC role assignments. false only on floci-az, which has no role assignments (D10)."
+  type        = bool
+  default     = true
+}

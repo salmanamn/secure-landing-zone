@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       floci-az:
-        image: floci/floci-az:0.15.0
+        image: floci/floci-az:0.16.0
         ports: ["4577:4577"]
         env:
           FLOCI_AZ_TLS_ENABLED: "true"

@@ -55,14 +55,25 @@ a user-assigned identity with "Key Vault Crypto Service Encryption User" on the 
 account. Role definitions are referenced by built-in ID, not name. The deployer gets "Key Vault Crypto
 Officer" to create the key. HSM-backed keys (Premium vault) are skipped for cost (CKV_AZURE_112).
 
-## D10 · Import check disabled on the local provider only
-floci-az has no role-assignment handler; its ARM fallthrough answers 200 to the GET azurerm sends before
-create, so every `azurerm_role_assignment` fails with "already exists". `envs/local` sets
-`skip_import_check_on_create_and_allow_overwriting_existing_resources = true`. Never set it in envs/azure:
-there it would silently take over existing resources instead of failing.
+## D10 · Role assignments are skipped on floci-az
+floci-az has no `Microsoft.Authorization/roleAssignments` handler: 0.15.0 answered every lookup with 200
+("already exists"), and 0.16.0 answers create with 404. `envs/local` sets `role_assignments_enabled = false`.
+The emulator doesn't enforce RBAC, so the key is still created. On real Azure both assignments are required:
+the deployer's Crypto Officer role (to create the key) and the storage identity's Crypto Service Encryption
+User role (to use it).
+`envs/local` also keeps `skip_import_check_on_create_and_allow_overwriting_existing_resources = true`, so a
+rebuild after a state reset can overwrite leftovers in the emulator. Never set it in envs/azure.
 
 ## D11 · CMK is planned everywhere but not attached on floci-az applies
 Before attaching a CMK, azurerm reads the vault and requires purge protection + soft delete. floci-az
 returns them as false (D1), so the attach fails locally. Plans (gate, CI) keep the CMK, so the policy
 rule is enforced; `rebuild-local.sh` applies with `storage_cmk_enabled=false`. The key, its rotation
 policy and both role assignments are still created locally. The attach itself is verified on real Azure.
+
+## D12 · Azure Policy enforces the baseline at request time
+Four custom definitions (storage: no public network, no Shared Key; key vault: no public network, purge
+protection) are grouped in one initiative and assigned with `Deny` to the resource group, hardened profile
+only, so the weak "before" profile stays deployable. Storage and Key Vault depend on the governance module
+so the assignment exists before they are written. Custom rather than built-in definitions because floci-az
+ships no built-in catalogue. On real Azure a new assignment can take up to ~30 minutes to take effect.
+Requires floci-az >= 0.16.0: 0.15.0 stores policy resources but does not evaluate them.

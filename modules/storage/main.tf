@@ -16,7 +16,7 @@ resource "azurerm_user_assigned_identity" "this" {
 }
 
 resource "azurerm_role_assignment" "cmk" {
-  count              = var.hardened ? 1 : 0
+  count              = var.hardened && var.role_assignments_enabled ? 1 : 0
   scope              = var.key_vault_id
   role_definition_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/e147488a-f6f5-4113-8e2d-b22465e65bf6" # Key Vault Crypto Service Encryption User
   principal_id       = azurerm_user_assigned_identity.this.principal_id

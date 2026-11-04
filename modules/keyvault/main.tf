@@ -82,7 +82,7 @@ locals {
 
 # Whoever runs Terraform needs data-plane rights to create the key (RBAC vault)
 resource "azurerm_role_assignment" "deployer_crypto_officer" {
-  count              = var.hardened ? 1 : 0
+  count              = var.hardened && var.role_assignments_enabled ? 1 : 0
   scope              = azurerm_key_vault.this.id
   role_definition_id = local.role_crypto_officer
   principal_id       = data.azurerm_client_config.current.object_id
@@ -90,7 +90,7 @@ resource "azurerm_role_assignment" "deployer_crypto_officer" {
 
 resource "azurerm_key_vault_key" "cmk" {
   #checkov:skip=CKV_AZURE_112:HSM-backed keys need a Premium vault; Standard is enough for a lab
-  count           = var.hardened ? 1 : 0
+  count           = var.hardened && var.role_assignments_enabled ? 1 : 0
   name            = "cmk-storage"
   key_vault_id    = azurerm_key_vault.this.id
   key_type        = "RSA"

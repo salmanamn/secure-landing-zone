@@ -1,6 +1,6 @@
 services:
   floci-az:
-    image: floci/floci-az:0.15.0
+    image: floci/floci-az:0.16.0
     container_name: floci-az
     restart: unless-stopped
     ports:

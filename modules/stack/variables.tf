@@ -34,3 +34,9 @@ variable "storage_cmk_enabled" {
   type        = bool
   default     = true
 }
+
+variable "role_assignments_enabled" {
+  description = "Create RBAC role assignments. false only on floci-az (D10)."
+  type        = bool
+  default     = true
+}

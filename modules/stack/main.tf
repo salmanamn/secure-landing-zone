@@ -39,6 +39,13 @@ module "monitoring" {
   tags                = var.tags
 }
 
+module "governance" {
+  source            = "../governance"
+  name              = var.name
+  resource_group_id = azurerm_resource_group.this.id
+  hardened          = var.hardened
+}
+
 module "keyvault" {
   source                       = "../keyvault"
   name                         = "kv-${var.name}-${random_string.suffix.result}"
@@ -50,7 +57,10 @@ module "keyvault" {
   log_analytics_workspace_id   = var.log_analytics_enabled ? module.monitoring[0].workspace_id : null
   diagnostics_enabled          = var.log_analytics_enabled
   hardened                     = var.hardened
+  role_assignments_enabled     = var.role_assignments_enabled
   tags                         = var.tags
+
+  depends_on = [module.governance] # policy must be active before the vault is written
 }
 
 module "storage" {
@@ -66,5 +76,7 @@ module "storage" {
   cmk_key_id                 = module.keyvault.cmk_key_id
   cmk_enabled                = var.storage_cmk_enabled
   hardened                   = var.hardened
+  role_assignments_enabled   = var.role_assignments_enabled
   tags                       = var.tags
+  depends_on                 = [module.governance]
 }

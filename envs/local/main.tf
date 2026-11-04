@@ -15,7 +15,8 @@ module "stack" {
   hardened            = var.hardened
   storage_cmk_enabled = var.storage_cmk_enabled
 
-  log_analytics_enabled = false # floci-az can't create workspaces (D8)
+  log_analytics_enabled    = false # floci-az can't create workspaces (D8)
+  role_assignments_enabled = false # floci-az has no role assignments (D10)
 
   tags = {
     project    = "secure-landing-zone"

@@ -75,3 +75,9 @@ variable "cmk_enabled" {
   type        = bool
   default     = true
 }
+
+variable "role_assignments_enabled" {
+  description = "Create RBAC role assignments. false only on floci-az, which has no role assignments (D10)."
+  type        = bool
+  default     = true
+}
