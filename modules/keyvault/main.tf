@@ -66,6 +66,11 @@ resource "azurerm_monitor_diagnostic_setting" "vault" {
   target_resource_id         = azurerm_key_vault.this.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
+  # CIS / Prowler expect both category groups (audit is a subset of allLogs)
+  enabled_log {
+    category_group = "audit"
+  }
+
   enabled_log {
     category_group = "allLogs"
   }

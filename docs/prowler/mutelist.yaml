@@ -1,0 +1,17 @@
+# Accepted risks for the lab (rationale: docs/decisions.md D13)
+Mutelist:
+  Accounts:
+    "*":
+      Checks:
+        "network_vnet_ddos_protection_enabled":   # ~$2,900/month
+          Regions: ["*"]
+          Resources: ["vnet-slz-.*"]
+        "storage_geo_redundant_enabled":          # LRS by design (CKV_AZURE_206)
+          Regions: ["*"]
+          Resources: ["stslz.*"]
+        "storage_key_rotation_90_days":           # Shared Key disabled: access keys unusable
+          Regions: ["*"]
+          Resources: ["stslz.*"]
+        "keyvault_key_rotation_enabled":          # verified via ARM; data plane private (D3)
+          Regions: ["*"]
+          Resources: ["cmk-storage"]

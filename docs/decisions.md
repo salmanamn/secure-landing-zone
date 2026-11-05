@@ -82,3 +82,11 @@ only, so the weak "before" profile stays deployable. Storage and Key Vault depen
 so the assignment exists before they are written. Custom rather than built-in definitions because floci-az
 ships no built-in catalogue. On real Azure a new assignment can take up to ~30 minutes to take effect.
 Requires floci-az >= 0.16.0: 0.15.0 stores policy resources but does not evaluate them.
+
+## D13 · Accepted Prowler findings (lab scope)
+Muted in `docs/prowler/mutelist.yaml`, each with a reason: DDoS Network Protection (~$2,900/month, not justified
+for a lab VNet); geo-redundant storage (LRS by design, prod uses GZRS); storage access-key rotation (Shared Key is
+disabled, so keys are unusable); Key Vault key rotation (policy verified via ARM: rotate 30 days before a 180-day
+expiry. Prowler reads it over the data plane, which is private by design, D3).
+Subscription-level findings (activity-log alerts, Network Watcher flow logs, Bastion) are subscription governance,
+outside this landing zone, and are reported separately.

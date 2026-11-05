@@ -1,0 +1,30 @@
+
+== stack (rg-slz-azure): FAIL 1 / MUTED 4 / PASS 27
+  MUTED high    keyvault_key_rotation_enabled                              cmk-storage
+  MUTED medium  network_vnet_ddos_protection_enabled                       vnet-slz-azure
+  FAIL  medium  storage_ensure_file_shares_soft_delete_is_enabled          stslzazureomsmc
+  MUTED medium  storage_geo_redundant_enabled                              stslzazureomsmc
+  MUTED medium  storage_key_rotation_90_days                               stslzazureomsmc
+
+== subscription-level: FAIL 21 / MUTED 0 / PASS 0
+  FAIL  medium  monitor_alert_create_policy_assignment                     eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    monitor_alert_create_update_nsg                            eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_create_update_public_ip_address_rule         eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_create_update_security_solution              eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_create_update_sqlserver_fr                   eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    monitor_alert_delete_nsg                                   eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    monitor_alert_delete_policy_assignment                     eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_delete_public_ip_address_rule                eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_delete_security_solution                     eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_delete_sqlserver_fr                          eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  monitor_alert_service_health_exists                        eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    monitor_diagnostic_setting_with_appropriate_categories     eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    monitor_diagnostic_settings_exists                         eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  medium  network_bastion_host_exists                                eb29b603-7b76-4d57-b197-d09972707081
+  FAIL  high    network_flow_log_captured_sent                             NetworkWatcher_eastus
+  FAIL  high    network_flow_log_captured_sent                             NetworkWatcher_westus2
+  FAIL  high    network_flow_log_captured_sent                             NetworkWatcher_uaenorth
+  FAIL  medium  network_flow_log_more_than_90_days                         NetworkWatcher_eastus
+  FAIL  medium  network_flow_log_more_than_90_days                         NetworkWatcher_westus2
+  FAIL  medium  network_flow_log_more_than_90_days                         NetworkWatcher_uaenorth
+  FAIL  high    network_watcher_enabled                                    eb29b603-7b76-4d57-b197-d09972707081

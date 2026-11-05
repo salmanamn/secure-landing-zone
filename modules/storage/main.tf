@@ -79,6 +79,19 @@ resource "azurerm_storage_account" "this" {
     expiration_action = "Log"
   }
 
+  # SMB defaults for Azure Files: no shares today, but the account-level policy is checked
+  dynamic "share_properties" {
+    for_each = var.hardened ? [1] : []
+    content {
+      smb {
+        versions                        = ["SMB3.1.1"]
+        authentication_types            = ["Kerberos"]
+        kerberos_ticket_encryption_type = ["AES-256"]
+        channel_encryption_type         = ["AES-256-GCM"]
+      }
+    }
+  }
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.this.id]
