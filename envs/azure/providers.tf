@@ -11,6 +11,8 @@ terraform {
       version = "~> 3.7"
     }
   }
+
+  backend "azurerm" {} # values in backend.hcl; auth from az CLI locally, OIDC in CI
 }
 
 # Real Azure. Identity comes from `az login` (use_cli defaults to true); subscription is pinned explicitly.
