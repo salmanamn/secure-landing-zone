@@ -1,0 +1,43 @@
+
+== stack (rg-slz-azure): FAIL 18 / PASS 10
+  high    keyvault_logging_enabled                                   kv-slz-azure-omsmc
+  high    keyvault_private_endpoints                                 kv-slz-azure-omsmc
+  high    keyvault_rbac_enabled                                      kv-slz-azure-omsmc
+  high    keyvault_recoverable                                       kv-slz-azure-omsmc
+  medium  network_vnet_ddos_protection_enabled                       vnet-slz-azure
+  high    storage_account_key_access_disabled                        stslzazureomsmc
+  high    storage_account_public_network_access_disabled             stslzazureomsmc
+  high    storage_blob_public_access_level_is_disabled               stslzazureomsmc
+  medium  storage_blob_versioning_is_enabled                         stslzazureomsmc
+  high    storage_default_network_access_rule_is_denied              stslzazureomsmc
+  medium  storage_default_to_entra_authorization_enabled             stslzazureomsmc
+  high    storage_ensure_encryption_with_customer_managed_keys       stslzazureomsmc
+  medium  storage_ensure_private_endpoints_in_storage_accounts       stslzazureomsmc
+  medium  storage_ensure_soft_delete_is_enabled                      stslzazureomsmc
+  medium  storage_geo_redundant_enabled                              stslzazureomsmc
+  medium  storage_key_rotation_90_days                               stslzazureomsmc
+  high    storage_secure_transfer_required_is_enabled                stslzazureomsmc
+  medium  storage_smb_channel_encryption_with_secure_algorithm       stslzazureomsmc
+
+== subscription-level: FAIL 21 / PASS 0
+  medium  monitor_alert_create_policy_assignment                     eb29b603-7b76-4d57-b197-d09972707081
+  high    monitor_alert_create_update_nsg                            eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_create_update_public_ip_address_rule         eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_create_update_security_solution              eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_create_update_sqlserver_fr                   eb29b603-7b76-4d57-b197-d09972707081
+  high    monitor_alert_delete_nsg                                   eb29b603-7b76-4d57-b197-d09972707081
+  high    monitor_alert_delete_policy_assignment                     eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_delete_public_ip_address_rule                eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_delete_security_solution                     eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_delete_sqlserver_fr                          eb29b603-7b76-4d57-b197-d09972707081
+  medium  monitor_alert_service_health_exists                        eb29b603-7b76-4d57-b197-d09972707081
+  high    monitor_diagnostic_setting_with_appropriate_categories     eb29b603-7b76-4d57-b197-d09972707081
+  high    monitor_diagnostic_settings_exists                         eb29b603-7b76-4d57-b197-d09972707081
+  medium  network_bastion_host_exists                                eb29b603-7b76-4d57-b197-d09972707081
+  high    network_flow_log_captured_sent                             NetworkWatcher_eastus
+  high    network_flow_log_captured_sent                             NetworkWatcher_westus2
+  high    network_flow_log_captured_sent                             NetworkWatcher_uaenorth
+  medium  network_flow_log_more_than_90_days                         NetworkWatcher_eastus
+  medium  network_flow_log_more_than_90_days                         NetworkWatcher_westus2
+  medium  network_flow_log_more_than_90_days                         NetworkWatcher_uaenorth
+  high    network_watcher_enabled                                    eb29b603-7b76-4d57-b197-d09972707081
