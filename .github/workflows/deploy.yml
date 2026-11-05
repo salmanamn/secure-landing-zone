@@ -1,0 +1,126 @@
+name: deploy
+
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - "modules/**"
+            - "envs/azure/**"
+            - ".github/workflows/deploy.yml"
+    workflow_dispatch:
+        inputs:
+            action:
+                description: "What to do to the Azure lab"
+                type: choice
+                options: [apply, destroy]
+                default: apply
+
+permissions:
+    contents: read
+
+concurrency:
+    group: tfstate-azure
+    cancel-in-progress: false
+
+env:
+    TF_VERSION: "1.17.1"
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "false"
+    ARM_USE_OIDC: "true"
+    ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+    plan:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+        env:
+            ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+        defaults:
+            run:
+                working-directory: envs/azure
+        outputs:
+            changes: ${{ steps.plan.outputs.changes }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: hashicorp/setup-terraform@v4
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+                  terraform_wrapper: false
+
+            - name: terraform init
+              run: terraform init -backend-config=backend.hcl
+
+            - name: terraform plan
+              id: plan
+              run: |
+                  set +e
+                  terraform plan ${{ inputs.action == 'destroy' && '-destroy' || '' }} \
+                    -lock-timeout=5m -detailed-exitcode -out=tfplan
+                  code=$?
+                  set -e
+                  if [ "$code" -eq 1 ]; then exit 1; fi
+                  echo "changes=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+            - name: Plan summary
+              run: |
+                  {
+                    echo "### terraform plan (${{ inputs.action || 'pull_request' }})"
+                    echo '```'
+                    terraform show -no-color tfplan | tail -n 80 | sed "s/${ARM_SUBSCRIPTION_ID}/***/g"
+                    echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Encrypt plan
+              if: github.event_name == 'workflow_dispatch' && steps.plan.outputs.changes == 'true'
+              env:
+                  TF_PLAN_KEY: ${{ secrets.TF_PLAN_KEY }}
+              run: openssl enc -aes-256-cbc -pbkdf2 -salt -in tfplan -out tfplan.enc -pass env:TF_PLAN_KEY
+
+            - uses: actions/upload-artifact@v4
+              if: github.event_name == 'workflow_dispatch' && steps.plan.outputs.changes == 'true'
+              with:
+                  name: tfplan
+                  path: envs/azure/tfplan.enc
+                  retention-days: 1
+
+    apply:
+        needs: plan
+        if: github.event_name == 'workflow_dispatch' && needs.plan.outputs.changes == 'true'
+        runs-on: ubuntu-latest
+        environment: azure
+        permissions:
+            contents: read
+            id-token: write
+        env:
+            ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
+        defaults:
+            run:
+                working-directory: envs/azure
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: hashicorp/setup-terraform@v4
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+                  terraform_wrapper: false
+
+            - name: terraform init
+              run: terraform init -backend-config=backend.hcl
+
+            - uses: actions/download-artifact@v4
+              with:
+                  name: tfplan
+                  path: envs/azure
+
+            - name: Decrypt plan
+              env:
+                  TF_PLAN_KEY: ${{ secrets.TF_PLAN_KEY }}
+              run: openssl enc -d -aes-256-cbc -pbkdf2 -in tfplan.enc -out tfplan -pass env:TF_PLAN_KEY
+
+            - name: terraform apply (${{ inputs.action }})
+              run: terraform apply -lock-timeout=5m tfplan
