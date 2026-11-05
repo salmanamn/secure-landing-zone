@@ -29,10 +29,13 @@ jobs:
         run: terraform fmt -recursive -check -diff
 
       - name: terraform validate
-        working-directory: envs/local
         run: |
-          terraform init -backend=false -input=false
-          terraform validate
+          for d in envs/local envs/azure bootstrap; do
+            echo "::group::validate $d"
+            terraform -chdir="$d" init -backend=false -input=false
+            terraform -chdir="$d" validate
+            echo "::endgroup::"
+          done
 
       - name: Checkov
         run: |
