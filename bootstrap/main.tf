@@ -214,3 +214,25 @@ resource "azurerm_role_assignment" "state" {
   principal_id         = each.value.principal
   principal_type       = each.value.type
 }
+
+# ---------- Plan identity: refresh of ARM template deployments (D3 CMK key) ----------
+# Reader covers */read only; azurerm reads template content via exportTemplate (POST action).
+
+resource "azurerm_role_definition" "plan_export_template" {
+  name        = "SLZ Terraform Plan - Export Deployment Template"
+  scope       = data.azurerm_subscription.current.id
+  description = "Lets the CI plan identity refresh azurerm_resource_group_template_deployment (not covered by Reader)."
+
+  permissions {
+    actions = ["Microsoft.Resources/deployments/exportTemplate/action"]
+  }
+
+  assignable_scopes = [data.azurerm_subscription.current.id]
+}
+
+resource "azurerm_role_assignment" "plan_export_template" {
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = azurerm_role_definition.plan_export_template.role_definition_resource_id
+  principal_id       = azurerm_user_assigned_identity.ci["plan"].principal_id
+  principal_type     = "ServicePrincipal"
+}
