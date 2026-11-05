@@ -37,3 +37,15 @@ Built locally against the floci-az emulator, gated in CI by Checkov and custom C
 - **Private by design:** the CMK is created through ARM, so Terraform never needs the vault's data plane (D3).
 - **Subscription-level findings** (activity-log alerts, Network Watcher flow logs, Bastion) belong to subscription governance, not this landing zone.
 - **Found on real Azure, not in the emulator:** a 409 on storage create (recovered by `terraform import`), ARM template type-casing drift, and azurerm disabling share soft delete when `share_properties` is set.
+
+## CI/CD to Azure
+
+Keyless GitHub Actions → Azure through OIDC federated credentials on two managed identities (D15).
+Remote state lives in an Entra-only storage account created by `bootstrap/` (D14).
+
+| Trigger | Identity | Result |
+|---|---|---|
+| Pull request | `id-slz-plan` (Reader) | `terraform plan` in the job summary |
+| Dispatch `apply` / `destroy` | `id-slz-plan` → `id-slz-apply` after approval | Saved plan applied exactly as reviewed |
+
+Run: `./scripts/ci-deploy.sh apply` … `./scripts/ci-deploy.sh destroy`
