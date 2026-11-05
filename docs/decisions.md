@@ -90,3 +90,35 @@ disabled, so keys are unusable); Key Vault key rotation (policy verified via ARM
 expiry. Prowler reads it over the data plane, which is private by design, D3).
 Subscription-level findings (activity-log alerts, Network Watcher flow logs, Bastion) are subscription governance,
 outside this landing zone, and are reported separately.
+
+## D14 — Remote state in a persistent bootstrap RG
+
+- `bootstrap/` is a separate root module, applied by hand. It creates `rg-slz-bootstrap` with the state account
+  (Entra-only, Shared Key off, versioning + 30-day blob/container soft delete, LRS), containers `tfstate`
+  (CI identities + operator) and `bootstrap` (operator only; holds bootstrap's own state), and the CI identities (D15).
+- Persistent: not destroyed per session (cost: cents/month). It sits outside `rg-slz-azure`, so the stack's Deny
+  initiative does not apply to it.
+- Public endpoint stays on: GitHub-hosted runners have no fixed IPs. Protection is Entra auth plus container-scoped RBAC.
+  Network lockdown (private endpoint/firewall) waits for a self-hosted runner in the VNet.
+- Accepted Checkov skips: CKV_AZURE_59, CKV_AZURE_35, CKV2_AZURE_33 (network, above), CKV2_AZURE_1 (Microsoft-managed
+  keys), CKV_AZURE_206 (LRS), CKV_AZURE_33 (no queues), CKV2_AZURE_21 (state access logging deferred to the
+  subscription baseline module, which will have a persistent Log Analytics workspace).
+- Teardown: migrate bootstrap state back to local (`terraform init -migrate-state` without the backend block), then destroy.
+
+## D15 — CI identities and deploy flow
+
+- Two user-assigned managed identities with GitHub federated credentials: no app registration, no secret, no Graph permissions.
+  - `id-slz-plan`: Reader (subscription) + Storage Blob Data Contributor (`tfstate` container; write is needed for the
+    lease lock). Trusted subjects: `pull_request`, `ref:refs/heads/main`.
+  - `id-slz-apply`: Contributor + Resource Policy Contributor + Role Based Access Control Administrator, with an
+    ABAC condition that only allows assigning/deleting Key Vault Crypto Service Encryption User + Storage Blob Data
+    Contributor (`tfstate`). Trusted subject: `environment:azure` only (required reviewer, `main` only).
+    Its client ID is an environment secret.
+  - Subjects use the `sub` prefix read from a real token (GitHub's immutable owner/repo-ID format where applicable).
+- Flow: PR → plan to the job summary. Dispatch `apply|destroy` → plan → encrypted artifact (1 day) → approval →
+  `terraform apply` of that exact plan. A concurrency group serialises state access.
+- CI deploys the hardened stack only; the weak → hardened Prowler comparison stays manual (D5).
+- Trade-offs: Contributor is at subscription scope because the stack creates its own RG. The plan identity can write
+  state, and anyone with repo write access can trigger a PR plan; acceptable for a single-maintainer repo.
+  The subscription ID is a secret so it is masked in logs, and the plan summary is sanitised.
+  
