@@ -89,6 +89,11 @@ resource "azurerm_storage_account" "this" {
         kerberos_ticket_encryption_type = ["AES-256"]
         channel_encryption_type         = ["AES-256-GCM"]
       }
+
+      # Without this, azurerm disables Azure's default file-share soft delete
+      retention_policy {
+        days = var.soft_delete_days
+      }
     }
   }
 

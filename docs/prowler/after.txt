@@ -1,8 +1,7 @@
 
-== stack (rg-slz-azure): FAIL 1 / MUTED 4 / PASS 27
+== stack (rg-slz-azure): FAIL 0 / MUTED 4 / PASS 28
   MUTED high    keyvault_key_rotation_enabled                              cmk-storage
   MUTED medium  network_vnet_ddos_protection_enabled                       vnet-slz-azure
-  FAIL  medium  storage_ensure_file_shares_soft_delete_is_enabled          stslzazureomsmc
   MUTED medium  storage_geo_redundant_enabled                              stslzazureomsmc
   MUTED medium  storage_key_rotation_90_days                               stslzazureomsmc
 

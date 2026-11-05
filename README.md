@@ -22,3 +22,18 @@ Built locally against the floci-az emulator, gated in CI by Checkov and custom C
     terraform fmt -recursive -check
     checkov -d . --framework terraform --compact
     conftest verify --policy policy/
+
+## Results on real Azure (uaenorth, Nov 2026)
+
+| | Weak profile (before) | Hardened profile (after) |
+|---|---|---|
+| Prowler — stack (`rg-slz-azure`) | **18 FAIL** / 10 PASS | **0 FAIL** / 4 muted / 28 PASS |
+| Prowler — subscription-level (out of scope) | 21 FAIL | 21 FAIL |
+| Azure Policy (Deny) | not assigned | blocks Shared Key, public access, missing purge protection — [evidence](docs/evidence/policy-deny-shared-key.txt) |
+| Checkov | — | 26 passed / 0 failed / 4 skipped (documented) |
+
+- **Before/after summaries:** [before](docs/prowler/before.txt) · [after](docs/prowler/after.txt). Raw Prowler output is not committed (tenant details).
+- **Accepted risks** (muted with reasons, [mutelist](docs/prowler/mutelist.yaml)): DDoS Network Protection, GRS, access-key rotation, Key Vault rotation false positive — see D13.
+- **Private by design:** the CMK is created through ARM, so Terraform never needs the vault's data plane (D3).
+- **Subscription-level findings** (activity-log alerts, Network Watcher flow logs, Bastion) belong to subscription governance, not this landing zone.
+- **Found on real Azure, not in the emulator:** a 409 on storage create (recovered by `terraform import`), ARM template type-casing drift, and azurerm disabling share soft delete when `share_properties` is set.

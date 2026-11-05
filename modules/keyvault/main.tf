@@ -95,8 +95,8 @@ resource "azurerm_resource_group_template_deployment" "cmk" {
     "$schema"      = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
     contentVersion = "1.0.0.0"
     parameters = {
-      vaultName = { type = "string" }
-      expiresOn = { type = "string" }
+      vaultName = { type = "String" }
+      expiresOn = { type = "String" }
     }
     resources = [
       {
@@ -123,7 +123,7 @@ resource "azurerm_resource_group_template_deployment" "cmk" {
     ]
     outputs = {
       keyUri = {
-        type  = "string"
+        type  = "String"
         value = "[reference(resourceId('Microsoft.KeyVault/vaults/keys', parameters('vaultName'), 'cmk-storage'), '2024-11-01').keyUri]"
       }
     }

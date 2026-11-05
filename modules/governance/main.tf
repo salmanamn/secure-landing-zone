@@ -90,6 +90,7 @@ resource "azurerm_policy_set_definition" "baseline" {
 resource "azurerm_resource_group_policy_assignment" "baseline" {
   count                = var.hardened ? 1 : 0
   name                 = "${var.name}-baseline"
+  display_name         = "Secure landing zone baseline (${var.name})"
   resource_group_id    = var.resource_group_id
   policy_definition_id = azurerm_policy_set_definition.baseline.id
   enforce              = true
