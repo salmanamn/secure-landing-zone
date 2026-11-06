@@ -122,3 +122,12 @@ outside this landing zone, and are reported separately.
   state, and anyone with repo write access can trigger a PR plan; acceptable for a single-maintainer repo.
   The subscription ID is a secret so it is masked in logs, and the plan summary is sanitised.
   
+## D16 — Nightly lab watchdog (check, not auto-destroy)
+
+- `lab-watchdog.yml` runs at 02:00 Asia/Bahrain (23:00 UTC) and on dispatch. It uses `id-slz-plan` (trusted for
+  `ref:refs/heads/main`) to count managed resources in `envs/azure` state (data sources excluded).
+- If the count is not 0, the run fails and a `lab-up` issue is opened (once, while one is open): GitHub notifies on both.
+- No auto-destroy: that would need the apply identity without the environment approval, a second ungated trust path.
+  The budget alerts remain the backstop.
+- `terraform state list` takes no lock, so the watchdog never blocks a deploy.
+- GitHub disables scheduled workflows in public repos after 60 days without repo activity.
