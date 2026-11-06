@@ -12,3 +12,5 @@ graph.svg
 !*.tfvars.example
 weak.tfplan
 docs/prowler/*/
+output/
+docs/prowler/sub-before/
