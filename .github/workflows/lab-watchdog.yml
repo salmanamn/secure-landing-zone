@@ -41,7 +41,7 @@ jobs:
 
             - name: Count resources in state
               id: count
-              run: echo "n=$(terraform state list | wc -l)" >> "$GITHUB_OUTPUT"
+              run: echo "n=$(terraform state list | grep -Evc '(^|\.)data\.')" >> "$GITHUB_OUTPUT"
 
             - name: Lab is down
               if: steps.count.outputs.n == '0'
