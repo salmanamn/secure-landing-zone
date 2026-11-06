@@ -132,3 +132,11 @@ outside this landing zone, and are reported separately.
   The budget alerts remain the backstop.
 - `terraform state list` takes no lock, so the watchdog never blocks a deploy.
 - GitHub disables scheduled workflows in public repos after 60 days without repo activity.
+- Gotcha: Resource Mover needs its identity's Contributor + User Access Administrator even to *delete* move resources. Removing the roles first left a `Failed`/`PreparePending` move resource that blocked RG deletion. Fix: re-grant both temporarily (5 min propagation) → delete move resource → delete RG → delete orphaned assignments.
+
+## D17 Persistent `platform/` root module for the subscription baseline
+- Subscription-wide controls (activity-log export, activity-log alerts, Service Health, flow-log storage) live in `platform/` → `rg-slz-platform`, not in the stack: they must outlive nightly destroys, and the activity log is subscription-scoped.
+- Persistent workspace `log-slz-platform` (Entra-only, 90-day retention, 1 GB/day cap). Activity logs: no ingestion charge; AzureActivity retained 90 days free.
+- State: same bootstrap account, key `platform.tfstate`. Applied by hand from the laptop (like `bootstrap/`); changes rarely. The watchdog only checks `envs/azure` state, so a persistent platform doesn't trip it.
+- Outside the stack's Deny scope by design. Teardown order: platform → bootstrap (D14).
+- Azure-only: no `envs/local` equivalent (floci-az doesn't emulate subscription diagnostics/alerts).
