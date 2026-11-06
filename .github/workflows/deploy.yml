@@ -45,7 +45,7 @@ jobs:
         outputs:
             changes: ${{ steps.plan.outputs.changes }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - uses: hashicorp/setup-terraform@v4
               with:
@@ -81,7 +81,7 @@ jobs:
                   TF_PLAN_KEY: ${{ secrets.TF_PLAN_KEY }}
               run: openssl enc -aes-256-cbc -pbkdf2 -salt -in tfplan -out tfplan.enc -pass env:TF_PLAN_KEY
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v6
               if: github.event_name == 'workflow_dispatch' && steps.plan.outputs.changes == 'true'
               with:
                   name: tfplan
@@ -102,7 +102,7 @@ jobs:
             run:
                 working-directory: envs/azure
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - uses: hashicorp/setup-terraform@v4
               with:
@@ -112,7 +112,7 @@ jobs:
             - name: terraform init
               run: terraform init -backend-config=backend.hcl
 
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v7
               with:
                   name: tfplan
                   path: envs/azure
