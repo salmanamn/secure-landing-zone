@@ -1,0 +1,63 @@
+name: lab-watchdog
+
+on:
+    schedule:
+        - cron: "0 23 * * *" # 02:00 Asia/Bahrain
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+env:
+    TF_VERSION: "1.17.1"
+    TF_IN_AUTOMATION: "true"
+    TF_INPUT: "false"
+    ARM_USE_OIDC: "true"
+    ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+            issues: write
+        env:
+            ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+        defaults:
+            run:
+                working-directory: envs/azure
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: hashicorp/setup-terraform@v4
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+                  terraform_wrapper: false
+
+            - name: terraform init
+              run: terraform init -backend-config=backend.hcl
+
+            - name: Count resources in state
+              id: count
+              run: echo "n=$(terraform state list | wc -l)" >> "$GITHUB_OUTPUT"
+
+            - name: Lab is down
+              if: steps.count.outputs.n == '0'
+              run: echo "Azure lab is down (0 resources in state)." >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Lab is still up
+              if: steps.count.outputs.n != '0'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  N: ${{ steps.count.outputs.n }}
+              run: |
+                  open=$(gh issue list --label lab-up --state open --json number --jq 'length')
+                  if [ "$open" = "0" ]; then
+                    gh issue create --label lab-up \
+                      --title "Azure lab still deployed ($N resources)" \
+                      --body "Watchdog found $N resources in envs/azure state at $(date -u +%FT%TZ). Run \`./scripts/ci-deploy.sh destroy\`, then close this issue."
+                  fi
+                  echo "::error::Azure lab still deployed: $N resources in state"
+                  exit 1
