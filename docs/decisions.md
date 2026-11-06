@@ -110,6 +110,7 @@ outside this landing zone, and are reported separately.
 - Two user-assigned managed identities with GitHub federated credentials: no app registration, no secret, no Graph permissions.
   - `id-slz-plan`: Reader (subscription) + Storage Blob Data Contributor (`tfstate` container; write is needed for the
     lease lock). Trusted subjects: `pull_request`, `ref:refs/heads/main`.
+    Plus a custom role with only `Microsoft.Resources/deployments/exportTemplate/action`: refreshing the ARM-template CMK key (D3) reads the template back, which Reader does not cover. Found when the first CI destroy plan failed.
   - `id-slz-apply`: Contributor + Resource Policy Contributor + Role Based Access Control Administrator, with an
     ABAC condition that only allows assigning/deleting Key Vault Crypto Service Encryption User + Storage Blob Data
     Contributor (`tfstate`). Trusted subject: `environment:azure` only (required reviewer, `main` only).
