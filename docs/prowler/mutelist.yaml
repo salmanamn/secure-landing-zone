@@ -1,17 +1,84 @@
-# Accepted risks for the lab (rationale: docs/decisions.md D13)
+# Accepted risks for the lab. Rationale in docs/decisions.md:
+#   D13 stack resources · D14 state account · D19 flow-log storage · D21 subscription/tenant scope
 Mutelist:
   Accounts:
     "*":
       Checks:
-        "network_vnet_ddos_protection_enabled":   # ~$2,900/month
+        # ---------- D13: stack resources ----------
+        "network_vnet_ddos_protection_enabled": # ~$2,900/month
           Regions: ["*"]
           Resources: ["vnet-slz-.*"]
-        "storage_geo_redundant_enabled":          # LRS by design (CKV_AZURE_206)
+        "storage_geo_redundant_enabled": # LRS by design (CKV_AZURE_206)
           Regions: ["*"]
           Resources: ["stslz.*"]
-        "storage_key_rotation_90_days":           # Shared Key disabled: access keys unusable
+        "storage_key_rotation_90_days": # Shared Key disabled: access keys unusable
           Regions: ["*"]
           Resources: ["stslz.*"]
-        "keyvault_key_rotation_enabled":          # verified via ARM; data plane private (D3)
+        "keyvault_key_rotation_enabled": # verified via ARM; data plane private (D3)
           Regions: ["*"]
           Resources: ["cmk-storage"]
+
+        # ---------- D14 state account / D19 flow-log storage ----------
+        # State: GitHub-hosted runners have no fixed IPs (lockdown waits for the hub runner).
+        # Flow logs: Network Watcher writes via the trusted-services exception.
+        "storage_account_public_network_access_disabled":
+          Regions: ["*"]
+          Resources: ["stslztfstate.*", "stslzflow.*"]
+        "storage_default_network_access_rule_is_denied":
+          Regions: ["*"]
+          Resources: ["stslztfstate.*"]
+        "storage_ensure_private_endpoints_in_storage_accounts":
+          Regions: ["*"]
+          Resources: ["stslztfstate.*", "stslzflow.*"]
+        "storage_ensure_encryption_with_customer_managed_keys": # state: no persistent vault; flow logs: CMK rotation breaks them
+          Regions: ["*"]
+          Resources: ["stslztfstate.*", "stslzflow.*"]
+        "storage_blob_versioning_is_enabled": # flow logs append every minute: a version per write
+          Regions: ["*"]
+          Resources: ["stslzflow.*"]
+
+        # ---------- D21: subscription scope ----------
+        # Prowler false positive: finding is raised on another custom role; "SLZ Resource Lock Administrator" has locks/* (D21)
+        "iam_custom_role_has_permissions_to_administer_resource_locks":
+          Regions: ["*"]
+          Resources: ["SLZ Terraform Plan - Export Deployment Template"]
+        "appinsights_ensure_is_configured":
+          &sub # no App Insights in this design
+          Regions: ["*"]
+          Resources: ["*"]
+        "iam_subscription_owners_between_2_and_3": *sub # single-person lab
+        "network_bastion_host_exists": *sub # no VMs; Bastion ~$140/month
+        "network_watcher_enabled": *sub # watchers only where VNets exist (D19)
+
+        # Defender plans: paid, out of scope. auto_provisioning = retired MMA agent.
+        "defender_auto_provisioning_log_analytics_agent_vms_on": *sub
+        "defender_container_images_scan_enabled": *sub
+        "defender_ensure_defender_for_app_services_is_on": *sub
+        "defender_ensure_defender_for_arm_is_on": *sub
+        "defender_ensure_defender_for_azure_sql_databases_is_on": *sub
+        "defender_ensure_defender_for_containers_is_on": *sub
+        "defender_ensure_defender_for_cosmosdb_is_on": *sub
+        "defender_ensure_defender_for_databases_is_on": *sub
+        "defender_ensure_defender_for_dns_is_on": *sub
+        "defender_ensure_defender_for_keyvault_is_on": *sub
+        "defender_ensure_defender_for_os_relational_databases_is_on": *sub
+        "defender_ensure_defender_for_server_is_on": *sub
+        "defender_ensure_defender_for_sql_servers_is_on": *sub
+        "defender_ensure_defender_for_storage_is_on": *sub
+        "defender_ensure_iot_hub_defender_is_on": *sub
+
+        # Entra tenant: Conditional Access / named locations need P1; MFA via CA.
+        # The 7 entra_policy_* toggles are free: candidate S2-5 (tenant hardening via Graph).
+        "entra_conditional_access_policy_require_mfa_for_admin_portals": *sub
+        "entra_conditional_access_policy_require_mfa_for_management_api": *sub
+        "entra_trusted_named_locations_exists": *sub
+        "entra_privileged_user_has_mfa": *sub
+        "entra_non_privileged_user_has_mfa": *sub
+        "entra_user_with_vm_access_has_mfa": *sub
+        "entra_policy_default_users_cannot_create_security_groups": *sub
+        "entra_policy_ensure_default_user_cannot_create_apps": *sub
+        "entra_policy_ensure_default_user_cannot_create_tenants": *sub
+        "entra_policy_guest_invite_only_for_admin_roles": *sub
+        "entra_policy_guest_users_access_restrictions": *sub
+        "entra_policy_restricts_user_consent_for_apps": *sub
+        "entra_users_cannot_create_microsoft_365_groups": *sub

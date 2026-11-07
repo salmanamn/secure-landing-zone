@@ -161,3 +161,13 @@ outside this landing zone, and are reported separately.
 - Blob StorageRead/Write/Delete → `log-slz-platform` via diagnostic setting on `blobServices/default`: who read, locked or changed state (StorageBlobLogs; all OAuth).
 - CKV2_AZURE_21 stays skipped: Checkov only recognises `azurerm_log_analytics_storage_insights`, which needs the account key (Shared Key off). The diagnostic setting is the real control.
 - bootstrap now reads the platform workspace → teardown order platform → bootstrap requires removing `logging.tf` first (or destroying bootstrap before platform's workspace).
+
+## D21 Subscription-scope Prowler mutes
+- Defender plans (15): paid, out of scope for the lab; `auto_provisioning_log_analytics_agent` is the retired MMA agent.
+- Entra tenant (13): Conditional Access, named locations and CA-based MFA need Entra ID P1. Seven `entra_policy_*` toggles are free → candidate S2-5 (tenant hardening via Graph), not Terraform.
+- `network_watcher_enabled`: watchers only where VNets exist; one per region would add a flow-log FAIL per region (D19).
+- `network_bastion_host_exists`, `appinsights_ensure_is_configured`: not part of this design. `iam_subscription_owners_between_2_and_3`: single-person lab.
+- Flow-log storage `storage_blob_versioning_is_enabled`: flow logs append blocks every minute; versioning would keep a version per write.
+- `iam_custom_role_has_permissions_to_administer_resource_locks`: Prowler false positive, raised on "SLZ Terraform Plan - Export Deployment Template". "SLZ Resource Lock Administrator" carries `Microsoft.Authorization/locks/*` (verify: `az role definition list --custom-role-only true`). Not fixed by adding locks to the plan role (least privilege, D15).
+- Service Health incidents alert deployed via ARM template (flat `allOf`: category + properties.incidentType); azurerm's `service_health` block nests incidentType in `anyOf`, which CIS/Prowler don't match.
+- Result (lab down, 2026-11-07): 58 FAIL → 0 FAIL / 46 muted / 62 PASS; table in README.

@@ -56,11 +56,9 @@ resource "azurerm_monitor_activity_log_alert" "admin" {
   }
 }
 
-# Service Health: Incident-only rule matches the CIS condition (incidentType = Incident);
-# a second rule carries security advisories, required actions and maintenance.
+# Service Health advisories (Security, ActionRequired, Maintenance) via the native resource.
 resource "azurerm_monitor_activity_log_alert" "service_health" {
   for_each = {
-    "incidents"  = ["Incident"]
     "advisories" = ["Security", "ActionRequired", "Maintenance"]
   }
 
@@ -83,4 +81,53 @@ resource "azurerm_monitor_activity_log_alert" "service_health" {
   action {
     action_group_id = azurerm_monitor_action_group.security.id
   }
+}
+
+# Service Health incidents with the flat CIS condition (category + properties.incidentType in one allOf).
+# azurerm's service_health block nests incidentType in anyOf, which CIS/Prowler don't recognise (D18).
+# New name on purpose: reusing the old one would let the azurerm destroy delete the template's alert.
+resource "azurerm_resource_group_template_deployment" "service_health_incidents" {
+  name                = "ala-${var.prefix}-service-health-cis"
+  resource_group_name = azurerm_resource_group.platform.name
+  deployment_mode     = "Incremental"
+  tags                = local.tags
+
+  parameters_content = jsonencode({
+    alertName     = { value = "ala-${var.prefix}-service-health-cis" }
+    scope         = { value = data.azurerm_subscription.current.id }
+    actionGroupId = { value = azurerm_monitor_action_group.security.id }
+    tags          = { value = local.tags }
+  })
+
+  template_content = jsonencode({
+    "$schema"      = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+    contentVersion = "1.0.0.0"
+    parameters = {
+      alertName     = { type = "String" } # title case: ARM normalises types
+      scope         = { type = "String" }
+      actionGroupId = { type = "String" }
+      tags          = { type = "Object" }
+    }
+    resources = [{
+      type       = "Microsoft.Insights/activityLogAlerts"
+      apiVersion = "2020-10-01"
+      name       = "[parameters('alertName')]"
+      location   = "global"
+      tags       = "[parameters('tags')]"
+      properties = {
+        enabled     = true
+        description = "Service Health incidents (CIS condition)"
+        scopes      = ["[parameters('scope')]"]
+        condition = {
+          allOf = [
+            { field = "category", equals = "ServiceHealth" },
+            { field = "properties.incidentType", equals = "Incident" },
+          ]
+        }
+        actions = {
+          actionGroups = [{ actionGroupId = "[parameters('actionGroupId')]" }]
+        }
+      }
+    }]
+  })
 }
