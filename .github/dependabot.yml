@@ -9,7 +9,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: terraform
-    directories: ["/envs/azure", "/envs/local", "/bootstrap"]
+    directories: ["/envs/azure", "/envs/local", "/bootstrap", "/platform"]
     schedule:
       interval: weekly
     ignore:

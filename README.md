@@ -2,17 +2,22 @@
 
 # Secure Landing Zone (Terraform)
 
-Hardened Azure Storage + Key Vault behind private endpoints, with resource logs to Log Analytics.
-Built locally against the floci-az emulator, gated in CI by Checkov and custom Conftest policies.
+Hardened Azure Storage + Key Vault behind private endpoints, with resource logs to Log Analytics, on top of a persistent subscription baseline (activity-log export, alerts, flow logs).
+Built locally against the floci-az emulator, gated in CI by Checkov and custom Conftest policies, deployed to Azure keylessly through GitHub OIDC.
 
 ## Layout
 - `modules/stack`: composition root used by every environment (`hardened` switch)
 - `modules/network`: VNet, private endpoint subnet + NSG, private DNS zones
 - `modules/monitoring`: Log Analytics workspace
-- `modules/storage`: Entra-only auth, no public access, TLS 1.2, soft delete, private endpoint, diagnostics
+- `modules/storage`: Entra-only auth, no public access, TLS 1.2, soft delete, CMK, private endpoint, diagnostics
 - `modules/keyvault`: RBAC, purge protection, firewall deny, private endpoint, diagnostics
+- `modules/governance`: custom Azure Policy definitions → initiative → Deny assignment
+- `envs/local`, `envs/azure`: same stack, different provider + inputs (floci-az vs real Azure)
+- `bootstrap/`: persistent remote state (Entra-only) + CI managed identities; state access logged (D14, D20)
+- `platform/`: persistent subscription baseline: activity log, alerts, hub VNet, flow logs (D17–D19)
 - `policy/`: Conftest rules on the plan JSON + unit tests
-- `docs/decisions.md`: design decisions and emulator limits
+- `scripts/`: local rebuild, CI deploy with scripted approval, Prowler summaries and before/after tables
+- `docs/decisions.md`: design decisions and emulator limits (D1–D22)
 
 ## Run locally
     docker compose up -d && ./scripts/trust-floci-cert.sh
@@ -20,35 +25,38 @@ Built locally against the floci-az emulator, gated in CI by Checkov and custom C
 
 ## Checks (same as CI)
     terraform fmt -recursive -check
-    checkov -d . --framework terraform --compact
+    for d in envs/local envs/azure bootstrap platform; do checkov -d "$d" --framework terraform --compact --quiet; done
     conftest verify --policy policy/
+
+Checkov runs per root module and is pinned (3.4.3), because a repo-wide `-d .` graph resolves module inputs inconsistently (D22).
 
 ## Results on real Azure (uaenorth, Nov 2026)
 
 | | Weak profile (before) | Hardened profile (after) |
 |---|---|---|
 | Prowler — stack (`rg-slz-azure`) | **18 FAIL** / 10 PASS | **0 FAIL** / 4 muted / 28 PASS |
-| Prowler — subscription-level (out of scope) | 21 FAIL | 21 FAIL |
+| Prowler — subscription | 58 FAIL | **0 FAIL** / 46 muted / 62 PASS — see [Subscription baseline](#subscription-baseline-s2-4) |
 | Azure Policy (Deny) | not assigned | blocks Shared Key, public access, missing purge protection — [evidence](docs/evidence/policy-deny-shared-key.txt) |
-| Checkov | — | 26 passed / 0 failed / 4 skipped (documented) |
+| Checkov | — | 0 failed across all four roots; every skip documented inline |
 
-- **Before/after summaries:** [before](docs/prowler/before.txt) · [after](docs/prowler/after.txt). Raw Prowler output is not committed (tenant details).
-- **Accepted risks** (muted with reasons, [mutelist](docs/prowler/mutelist.yaml)): DDoS Network Protection, GRS, access-key rotation, Key Vault rotation false positive — see D13.
+- **Before/after summaries:** stack [before](docs/prowler/before.txt) · [after](docs/prowler/after.txt); subscription [before](docs/prowler/subscription-before.txt) · [after](docs/prowler/subscription-after.txt) (empty = no unmuted FAIL). Raw Prowler output is not committed (tenant details).
+- **Accepted risks** (muted with reasons, [mutelist](docs/prowler/mutelist.yaml)): D13 (stack), D14 (state account), D19 (flow-log storage), D21 (Defender plans, Entra P1 features, single-owner lab).
 - **Private by design:** the CMK is created through ARM, so Terraform never needs the vault's data plane (D3).
-- **Subscription-level findings** (activity-log alerts, Network Watcher flow logs, Bastion) belong to subscription governance, not this landing zone.
-- **Found on real Azure, not in the emulator:** a 409 on storage create (recovered by `terraform import`), ARM template type-casing drift, and azurerm disabling share soft delete when `share_properties` is set.
+- **Found on real Azure, not in the emulator:** a 409 on storage create (recovered by `terraform import`), ARM template type-casing drift, azurerm disabling share soft delete when `share_properties` is set, and azurerm nesting Service Health conditions in `anyOf` (D21).
 
 ## CI/CD to Azure
 
 Keyless GitHub Actions → Azure through OIDC federated credentials on two managed identities (D15).
-Remote state lives in an Entra-only storage account created by `bootstrap/` (D14).
+Remote state lives in an Entra-only storage account created by `bootstrap/` (D14). `main` is protected: both CI checks must pass.
 
 | Trigger | Identity | Result |
 |---|---|---|
 | Pull request | `id-slz-plan` (Reader) | `terraform plan` in the job summary |
 | Dispatch `apply` / `destroy` | `id-slz-plan` → `id-slz-apply` after approval | Saved plan applied exactly as reviewed |
+| Nightly 02:00 Bahrain | `id-slz-plan` | Watchdog: fails + opens a `lab-up` issue if the stack is still deployed (D16) |
 
 Run: `./scripts/ci-deploy.sh apply` … `./scripts/ci-deploy.sh destroy`
+
 ## Subscription baseline (S2-4)
 
 Persistent `platform/` layer: activity log → `log-slz-platform`, activity-log alerts (CIS set + role assignments + Key Vault delete) and Service Health, lock-admin custom role, hub VNet with VNet flow logs + Traffic Analytics, state-account SMB hardening and access logging. Prowler 5.47, full subscription, lab down, 2026-11-07:
