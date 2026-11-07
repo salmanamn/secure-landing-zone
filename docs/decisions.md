@@ -171,3 +171,8 @@ outside this landing zone, and are reported separately.
 - `iam_custom_role_has_permissions_to_administer_resource_locks`: Prowler false positive, raised on "SLZ Terraform Plan - Export Deployment Template". "SLZ Resource Lock Administrator" carries `Microsoft.Authorization/locks/*` (verify: `az role definition list --custom-role-only true`). Not fixed by adding locks to the plan role (least privilege, D15).
 - Service Health incidents alert deployed via ARM template (flat `allOf`: category + properties.incidentType); azurerm's `service_health` block nests incidentType in `anyOf`, which CIS/Prowler don't match.
 - Result (lab down, 2026-11-07): 58 FAIL → 0 FAIL / 46 muted / 62 PASS; table in README.
+
+## D22 Checkov per root, pinned
+- `checkov -d .` builds one graph across all root modules (envs/local, envs/azure, bootstrap, platform) and resolved `module.stack` inputs inconsistently once `platform/` was added (CKV_AZURE_35 on the stack storage account; each root passes on its own). Terraform never evaluates the repo as one graph, so CI scans each root separately.
+- Checkov pinned (`3.4.3`) in CI and locally so a release can't change results between runs; bump deliberately.
+- PR #6 was merged with this check red → branch protection now requires CI on `main`.

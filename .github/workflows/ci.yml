@@ -39,8 +39,14 @@ jobs:
 
       - name: Checkov
         run: |
-          pip install --quiet checkov
-          checkov -d . --framework terraform --compact --quiet
+          pip install --quiet "checkov==3.4.3"
+          rc=0
+          for d in envs/local envs/azure bootstrap platform; do
+            echo "::group::checkov $d"
+            checkov -d "$d" --framework terraform --compact --quiet || rc=1
+            echo "::endgroup::"
+          done
+          exit $rc
 
       - name: Install Conftest
         run: |
