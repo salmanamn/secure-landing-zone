@@ -155,3 +155,9 @@ outside this landing zone, and are reported separately.
 - Unused watchers (eastus, westus2 from the Resource Mover experiment) deleted; `network_watcher_enabled` (all regions) muted: a watcher per region would add a flow-log FAIL per region.
 - Stack VNet gets no flow log: no compute, and private-endpoint traffic isn't captured. Data-path test deferred until the runner VM exists.
 - Provider: `features.storage.data_plane_available = false` (account denies public data-plane traffic).
+
+## D20 State-account hardening (bootstrap)
+- SMB 3.1.1 / Kerberos AES-256 / channel AES-256-GCM, share soft delete 7d (no shares used; closes Prowler `storage_smb_channel_encryption_with_secure_algorithm`).
+- Blob StorageRead/Write/Delete → `log-slz-platform` via diagnostic setting on `blobServices/default`: who read, locked or changed state (StorageBlobLogs; all OAuth).
+- CKV2_AZURE_21 stays skipped: Checkov only recognises `azurerm_log_analytics_storage_insights`, which needs the account key (Shared Key off). The diagnostic setting is the real control.
+- bootstrap now reads the platform workspace → teardown order platform → bootstrap requires removing `logging.tf` first (or destroying bootstrap before platform's workspace).
