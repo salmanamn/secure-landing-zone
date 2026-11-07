@@ -33,6 +33,7 @@ env:
 
 jobs:
     plan:
+        if: github.actor != 'dependabot[bot]' # Dependabot runs get no repo secrets → OIDC init fails
         runs-on: ubuntu-latest
         permissions:
             contents: read
