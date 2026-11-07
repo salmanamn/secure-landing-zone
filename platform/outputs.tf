@@ -15,3 +15,8 @@ output "workspace_customer_id" {
 output "workspace_name" {
   value = azurerm_log_analytics_workspace.platform.name
 }
+
+output "action_group_id" {
+  description = "Security action group, reused by stack/bootstrap alerts later."
+  value       = azurerm_monitor_action_group.security.id
+}

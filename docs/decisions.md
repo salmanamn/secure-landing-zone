@@ -140,3 +140,10 @@ outside this landing zone, and are reported separately.
 - State: same bootstrap account, key `platform.tfstate`. Applied by hand from the laptop (like `bootstrap/`); changes rarely. The watchdog only checks `envs/azure` state, so a persistent platform doesn't trip it.
 - Outside the stack's Deny scope by design. Teardown order: platform → bootstrap (D14).
 - Azure-only: no `envs/local` equivalent (floci-az doesn't emulate subscription diagnostics/alerts).
+
+## D18 Subscription activity-log alerts
+- One activity-log alert per operation (Prowler/CIS match a single operationName per rule), `Succeeded` only, subscription scope, one email action group `ag-slz-security`.
+- Prowler set (policy assignment, NSG, security solution, SQL firewall, public IP: write/delete) + role assignment write/delete + Key Vault delete.
+- Service Health split: Incident-only rule (CIS condition) + advisories (Security, ActionRequired, Maintenance).
+- Accepted noise: ~8–10 emails per lab apply/destroy (NSG, role/policy assignments, vault). Activity-log alerts can't exclude callers; filter in the mailbox instead.
+- Custom role "SLZ Resource Lock Administrator" (locks/* + reads), unassigned.
