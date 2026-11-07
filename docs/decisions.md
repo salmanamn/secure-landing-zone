@@ -10,6 +10,8 @@ in `ignore_changes` (it is set-at-creation on Azure anyway).
 Security is therefore verified at plan time (Checkov + Conftest) and at runtime on real Azure (Prowler),
 not by the emulator.
 
+- Re-checked on floci-az 0.16.0 (2026-11-07): `share_properties` (SMB 3.1.1 / AES-256-GCM + share soft delete) and blob/container retention are accepted on create but not persisted → same perpetual in-place diff (`2 to change`). No emulator switch needed; verified on real Azure by Prowler (SMB checks PASS).
+
 ## D2 · queue/table encryption key type = Account
 Account-scoped keys let a future customer-managed key cover queues and tables, not only blob and file.
 This also matches what floci-az returns, so there is no forced replacement.
