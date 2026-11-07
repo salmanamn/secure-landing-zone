@@ -20,3 +20,15 @@ output "action_group_id" {
   description = "Security action group, reused by stack/bootstrap alerts later."
   value       = azurerm_monitor_action_group.security.id
 }
+
+output "hub_vnet_id" {
+  value = azurerm_virtual_network.hub.id
+}
+
+output "runner_subnet_id" {
+  value = azurerm_subnet.runners.id
+}
+
+output "flowlog_storage_account_name" {
+  value = azurerm_storage_account.flowlogs.name
+}

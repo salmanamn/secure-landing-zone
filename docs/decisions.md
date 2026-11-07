@@ -147,3 +147,11 @@ outside this landing zone, and are reported separately.
 - Service Health split: Incident-only rule (CIS condition) + advisories (Security, ActionRequired, Maintenance).
 - Accepted noise: ~8–10 emails per lab apply/destroy (NSG, role/policy assignments, vault). Activity-log alerts can't exclude callers; filter in the mailbox instead.
 - Custom role "SLZ Resource Lock Administrator" (locks/* + reads), unassigned.
+
+## D19 Flow logs on a persistent hub VNet
+- Prowler/CIS score flow logs per Network Watcher; the stack VNet is destroyed nightly, so the flow log lives on a persistent hub `vnet-slz-hub` (10.100.0.0/24, `snet-runners` reserved for the self-hosted runner) in `platform/`.
+- VNet flow logs (NSG flow-log creation is retired), version 2, 90-day retention + lifecycle rule, Traffic Analytics → `log-slz-platform` every 60 min.
+- Storage `stslzflow<sha1(sub)[0:8]>`: Standard LRS, Shared Key off, Entra default, default Deny + trusted-services bypass (why public access stays "selected networks"), no PE, Microsoft-managed keys (CMK rotation breaks flow logs). Keyless writes via UAMI `id-slz-flowlogs` (Storage Blob Data Contributor) where the provider supports it.
+- Unused watchers (eastus, westus2 from the Resource Mover experiment) deleted; `network_watcher_enabled` (all regions) muted: a watcher per region would add a flow-log FAIL per region.
+- Stack VNet gets no flow log: no compute, and private-endpoint traffic isn't captured. Data-path test deferred until the runner VM exists.
+- Provider: `features.storage.data_plane_available = false` (account denies public data-plane traffic).
