@@ -91,11 +91,23 @@ resource "azurerm_storage_account" "tfstate" {
     }
   }
 
+  share_properties {
+    retention_policy {
+      days = 7 # keep share soft delete (azurerm drops it if retention_policy is omitted)
+    }
+    smb {
+      versions                        = ["SMB3.1.1"]
+      authentication_types            = ["Kerberos"]
+      kerberos_ticket_encryption_type = ["AES-256"]
+      channel_encryption_type         = ["AES-256-GCM"]
+    }
+  }
+
   tags = local.tags
 }
 
 resource "azurerm_storage_container" "tfstate" {
-  #checkov:skip=CKV2_AZURE_21:No persistent Log Analytics workspace in bootstrap yet; state access logging deferred to the subscription baseline module (D14)
+  #checkov:skip=CKV2_AZURE_21:Checkov only accepts azurerm_log_analytics_storage_insights (needs account key; Shared Key off). Blob read/write/delete logged via diagnostic setting (logging.tf, D20)
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"
@@ -103,7 +115,7 @@ resource "azurerm_storage_container" "tfstate" {
 
 # Bootstrap's own state: only the human operator gets a data role here.
 resource "azurerm_storage_container" "bootstrap" {
-  #checkov:skip=CKV2_AZURE_21:No persistent Log Analytics workspace in bootstrap yet; state access logging deferred to the subscription baseline module (D14)
+  #checkov:skip=CKV2_AZURE_21:Checkov only accepts azurerm_log_analytics_storage_insights (needs account key; Shared Key off). Blob read/write/delete logged via diagnostic setting (logging.tf, D20)
   name                  = "bootstrap"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"

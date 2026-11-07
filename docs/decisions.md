@@ -132,3 +132,42 @@ outside this landing zone, and are reported separately.
   The budget alerts remain the backstop.
 - `terraform state list` takes no lock, so the watchdog never blocks a deploy.
 - GitHub disables scheduled workflows in public repos after 60 days without repo activity.
+- Gotcha: Resource Mover needs its identity's Contributor + User Access Administrator even to *delete* move resources. Removing the roles first left a `Failed`/`PreparePending` move resource that blocked RG deletion. Fix: re-grant both temporarily (5 min propagation) → delete move resource → delete RG → delete orphaned assignments.
+
+## D17 Persistent `platform/` root module for the subscription baseline
+- Subscription-wide controls (activity-log export, activity-log alerts, Service Health, flow-log storage) live in `platform/` → `rg-slz-platform`, not in the stack: they must outlive nightly destroys, and the activity log is subscription-scoped.
+- Persistent workspace `log-slz-platform` (Entra-only, 90-day retention, 1 GB/day cap). Activity logs: no ingestion charge; AzureActivity retained 90 days free.
+- State: same bootstrap account, key `platform.tfstate`. Applied by hand from the laptop (like `bootstrap/`); changes rarely. The watchdog only checks `envs/azure` state, so a persistent platform doesn't trip it.
+- Outside the stack's Deny scope by design. Teardown order: platform → bootstrap (D14).
+- Azure-only: no `envs/local` equivalent (floci-az doesn't emulate subscription diagnostics/alerts).
+
+## D18 Subscription activity-log alerts
+- One activity-log alert per operation (Prowler/CIS match a single operationName per rule), `Succeeded` only, subscription scope, one email action group `ag-slz-security`.
+- Prowler set (policy assignment, NSG, security solution, SQL firewall, public IP: write/delete) + role assignment write/delete + Key Vault delete.
+- Service Health split: Incident-only rule (CIS condition) + advisories (Security, ActionRequired, Maintenance).
+- Accepted noise: ~8–10 emails per lab apply/destroy (NSG, role/policy assignments, vault). Activity-log alerts can't exclude callers; filter in the mailbox instead.
+- Custom role "SLZ Resource Lock Administrator" (locks/* + reads), unassigned.
+
+## D19 Flow logs on a persistent hub VNet
+- Prowler/CIS score flow logs per Network Watcher; the stack VNet is destroyed nightly, so the flow log lives on a persistent hub `vnet-slz-hub` (10.100.0.0/24, `snet-runners` reserved for the self-hosted runner) in `platform/`.
+- VNet flow logs (NSG flow-log creation is retired), version 2, 90-day retention + lifecycle rule, Traffic Analytics → `log-slz-platform` every 60 min.
+- Storage `stslzflow<sha1(sub)[0:8]>`: Standard LRS, Shared Key off, Entra default, default Deny + trusted-services bypass (why public access stays "selected networks"), no PE, Microsoft-managed keys (CMK rotation breaks flow logs). Keyless writes via UAMI `id-slz-flowlogs` (Storage Blob Data Contributor) where the provider supports it.
+- Unused watchers (eastus, westus2 from the Resource Mover experiment) deleted; `network_watcher_enabled` (all regions) muted: a watcher per region would add a flow-log FAIL per region.
+- Stack VNet gets no flow log: no compute, and private-endpoint traffic isn't captured. Data-path test deferred until the runner VM exists.
+- Provider: `features.storage.data_plane_available = false` (account denies public data-plane traffic).
+
+## D20 State-account hardening (bootstrap)
+- SMB 3.1.1 / Kerberos AES-256 / channel AES-256-GCM, share soft delete 7d (no shares used; closes Prowler `storage_smb_channel_encryption_with_secure_algorithm`).
+- Blob StorageRead/Write/Delete → `log-slz-platform` via diagnostic setting on `blobServices/default`: who read, locked or changed state (StorageBlobLogs; all OAuth).
+- CKV2_AZURE_21 stays skipped: Checkov only recognises `azurerm_log_analytics_storage_insights`, which needs the account key (Shared Key off). The diagnostic setting is the real control.
+- bootstrap now reads the platform workspace → teardown order platform → bootstrap requires removing `logging.tf` first (or destroying bootstrap before platform's workspace).
+
+## D21 Subscription-scope Prowler mutes
+- Defender plans (15): paid, out of scope for the lab; `auto_provisioning_log_analytics_agent` is the retired MMA agent.
+- Entra tenant (13): Conditional Access, named locations and CA-based MFA need Entra ID P1. Seven `entra_policy_*` toggles are free → candidate S2-5 (tenant hardening via Graph), not Terraform.
+- `network_watcher_enabled`: watchers only where VNets exist; one per region would add a flow-log FAIL per region (D19).
+- `network_bastion_host_exists`, `appinsights_ensure_is_configured`: not part of this design. `iam_subscription_owners_between_2_and_3`: single-person lab.
+- Flow-log storage `storage_blob_versioning_is_enabled`: flow logs append blocks every minute; versioning would keep a version per write.
+- `iam_custom_role_has_permissions_to_administer_resource_locks`: Prowler false positive, raised on "SLZ Terraform Plan - Export Deployment Template". "SLZ Resource Lock Administrator" carries `Microsoft.Authorization/locks/*` (verify: `az role definition list --custom-role-only true`). Not fixed by adding locks to the plan role (least privilege, D15).
+- Service Health incidents alert deployed via ARM template (flat `allOf`: category + properties.incidentType); azurerm's `service_health` block nests incidentType in `anyOf`, which CIS/Prowler don't match.
+- Result (lab down, 2026-11-07): 58 FAIL → 0 FAIL / 46 muted / 62 PASS; table in README.

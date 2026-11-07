@@ -49,3 +49,20 @@ Remote state lives in an Entra-only storage account created by `bootstrap/` (D14
 | Dispatch `apply` / `destroy` | `id-slz-plan` → `id-slz-apply` after approval | Saved plan applied exactly as reviewed |
 
 Run: `./scripts/ci-deploy.sh apply` … `./scripts/ci-deploy.sh destroy`
+## Subscription baseline (S2-4)
+
+Persistent `platform/` layer: activity log → `log-slz-platform`, activity-log alerts (CIS set + role assignments + Key Vault delete) and Service Health, lock-admin custom role, hub VNet with VNet flow logs + Traffic Analytics, state-account SMB hardening and access logging. Prowler 5.47, full subscription, lab down, 2026-11-07:
+
+| Service | Before FAIL | After FAIL | After muted | After PASS |
+|---|---:|---:|---:|---:|
+| appinsights | 1 | 0 | 1 | 0 |
+| defender | 15 | 0 | 15 | 2 |
+| entra | 13 | 0 | 13 | 2 |
+| iam | 3 | 0 | 2 | 11 |
+| monitor | 13 | 0 | 0 | 13 |
+| network | 8 | 0 | 3 | 7 |
+| policy | 0 | 0 | 0 | 1 |
+| storage | 5 | 0 | 12 | 26 |
+| **Total** | **58** | **0** | **46** | **62** |
+
+Every muted finding is an accepted risk with a reason in `docs/prowler/mutelist.yaml` and `docs/decisions.md` (D13, D14, D19, D21).
