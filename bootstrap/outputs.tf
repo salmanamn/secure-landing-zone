@@ -24,3 +24,8 @@ output "backend_hcl" {
     use_azuread_auth     = true
   EOT
 }
+
+output "email_sender_role_id" {
+  description = "Custom role id the Project 3 stack assigns (infra/modules/stack email_sender_role_definition_id)."
+  value       = azurerm_role_definition.email_sender.role_definition_id
+}

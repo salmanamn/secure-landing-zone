@@ -23,3 +23,13 @@ variable "github_environment" {
   default     = "azure"
   description = "GitHub environment (with required reviewers) that the apply identity trusts."
 }
+
+variable "triage_oidc_subject_prefix" {
+  type        = string
+  description = "OIDC sub prefix of salmanamn/ticket-triage-agent (Project 3), read from a real token, e.g. repo:owner@123/repo@789."
+
+  validation {
+    condition     = can(regex("^repo:[^:]+$", var.triage_oidc_subject_prefix))
+    error_message = "Must start with 'repo:' and contain no ':' context suffix."
+  }
+}
