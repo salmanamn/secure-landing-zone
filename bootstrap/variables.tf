@@ -33,3 +33,13 @@ variable "triage_oidc_subject_prefix" {
     error_message = "Must start with 'repo:' and contain no ':' context suffix."
   }
 }
+
+variable "voice_oidc_subject_prefix" {
+  type        = string
+  description = "OIDC sub prefix of salmanamn/arabic-voice-assistant (Project 4), read from a real token, e.g. repo:owner@123/repo@789."
+
+  validation {
+    condition     = can(regex("^repo:[^:]+$", var.voice_oidc_subject_prefix))
+    error_message = "Must start with 'repo:' and contain no ':' context suffix."
+  }
+}
