@@ -17,7 +17,8 @@ locals {
   # Only roles the stacks deployed by CI assign (D15, D23, D24). Project 1: Key Vault Crypto Service Encryption User
   # (CMK). Project 3 (ticket-triage-agent): the app identity's data roles, the Event Grid dead-letter role, the
   # operator's OpenAI role and the custom email-sender role below. Project 4 (arabic-voice-assistant): AcrPull for the
-  # AKS kubelet, AKS RBAC Cluster Admin for the deployer, AKS RBAC Admin for the operator (one namespace), OpenAI User.
+  # AKS kubelet, AKS RBAC Cluster Admin for the deployer, AKS RBAC Admin for the operator (one namespace), OpenAI User,
+  # and Speech User for the gateway on the optional Azure AI Speech account (D25).
   # Each repo's Conftest gate also pins scopes and principal types.
   assignable_role_ids = [
     "e147488a-f6f5-4113-8e2d-b22465e65bf6", # Key Vault Crypto Service Encryption User
@@ -32,6 +33,7 @@ locals {
     "7f951dda-4ed3-4680-a7ca-43fe172d538d", # AcrPull (Project 4: AKS kubelet on the stack's registry)
     "b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b", # Azure Kubernetes Service RBAC Cluster Admin (Project 4: id-slz-apply on its cluster)
     "3498e952-d568-435e-9b2c-8d77e338d7f7", # Azure Kubernetes Service RBAC Admin (Project 4: operator, namespace voice)
+    "f2dc8367-1007-4938-bd23-fe263f013447", # Cognitive Services Speech User (Project 4: gateway, optional Speech account)
   ]
   assignable_roles = join(", ", local.assignable_role_ids)
 
