@@ -18,7 +18,9 @@ locals {
   # (CMK). Project 3 (ticket-triage-agent): the app identity's data roles, the Event Grid dead-letter role, the
   # operator's OpenAI role and the custom email-sender role below. Project 4 (arabic-voice-assistant): AcrPull for the
   # AKS kubelet, AKS RBAC Cluster Admin for the deployer, AKS RBAC Admin for the operator (one namespace), OpenAI User,
-  # and Speech User for the gateway on the optional Azure AI Speech account (D25).
+  # and Speech User for the gateway on the optional Azure AI Speech account (D25). Project 5 (meeting-summarizer):
+  # Storage Queue Data Contributor for the Blob trigger's queues and Storage Blob Data Reader for its Speech account
+  # (D26); its other roles are already listed.
   # Each repo's Conftest gate also pins scopes and principal types.
   assignable_role_ids = [
     "e147488a-f6f5-4113-8e2d-b22465e65bf6", # Key Vault Crypto Service Encryption User
@@ -34,6 +36,8 @@ locals {
     "b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b", # Azure Kubernetes Service RBAC Cluster Admin (Project 4: id-slz-apply on its cluster)
     "3498e952-d568-435e-9b2c-8d77e338d7f7", # Azure Kubernetes Service RBAC Admin (Project 4: operator, namespace voice)
     "f2dc8367-1007-4938-bd23-fe263f013447", # Cognitive Services Speech User (Project 4: gateway, optional Speech account)
+    "974c5e8b-45b9-4653-ba55-5f855dd0fb88", # Storage Queue Data Contributor (Project 5: the Blob trigger's queues)
+    "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1", # Storage Blob Data Reader (Project 5: Speech reads incoming/)
   ]
   assignable_roles = join(", ", local.assignable_role_ids)
 
@@ -245,6 +249,37 @@ resource "azurerm_federated_identity_credential" "voice_apply_env" {
   depends_on = [azurerm_federated_identity_credential.triage_apply_env]
 }
 
+# Project 5 (meeting-summarizer) deploys through the same two identities too (D26). Written after Project 4's.
+resource "azurerm_federated_identity_credential" "meeting_plan_pr" {
+  name                      = "github-meeting-summarizer-pull-request"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci["plan"].id
+  issuer                    = local.github_issuer
+  audience                  = local.audience
+  subject                   = "${var.meeting_oidc_subject_prefix}:pull_request"
+
+  depends_on = [azurerm_federated_identity_credential.voice_plan_main]
+}
+
+resource "azurerm_federated_identity_credential" "meeting_plan_main" {
+  name                      = "github-meeting-summarizer-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci["plan"].id
+  issuer                    = local.github_issuer
+  audience                  = local.audience
+  subject                   = "${var.meeting_oidc_subject_prefix}:ref:refs/heads/main"
+
+  depends_on = [azurerm_federated_identity_credential.meeting_plan_pr]
+}
+
+resource "azurerm_federated_identity_credential" "meeting_apply_env" {
+  name                      = "github-meeting-summarizer-env-${var.github_environment}"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci["apply"].id
+  issuer                    = local.github_issuer
+  audience                  = local.audience
+  subject                   = "${var.meeting_oidc_subject_prefix}:environment:${var.github_environment}"
+
+  depends_on = [azurerm_federated_identity_credential.voice_apply_env]
+}
+
 # ---------- Control-plane roles ----------
 
 resource "azurerm_role_assignment" "plan_reader" {
@@ -357,10 +392,12 @@ resource "azurerm_role_definition" "email_sender" {
   assignable_scopes = [data.azurerm_subscription.current.id]
 }
 
-# Refreshing the Project 3 and 4 stacks: azurerm reads these through POST actions that Reader doesn't cover, even
+# Refreshing the Project 3, 4 and 5 stacks: azurerm reads these through POST actions that Reader doesn't cover, even
 # with local auth disabled (Cosmos keys + connection strings, Event Grid topic keys and subscription URL, Function App
-# config lists; AKS: the user kubeconfig, which holds no credential with local accounts off). The keys are useless
-# while local auth is off; Project 2 SLZ-003 still sees every listing.
+# config lists; AKS: the user kubeconfig, which holds no credential with local accounts off; Project 5: the Function
+# host's keys, whose blobs_extension key is in the webhook URL of its system topic subscription, and that
+# subscription's URL and delivery attributes, D26). The keys are useless while local auth is off; Project 2 SLZ-003
+# and SLZ-009 still see every listing.
 resource "azurerm_role_definition" "plan_refresh" {
   name        = "SLZ Terraform Plan - Refresh List Actions"
   scope       = data.azurerm_subscription.current.id
@@ -375,6 +412,9 @@ resource "azurerm_role_definition" "plan_refresh" {
       "Microsoft.EventGrid/eventSubscriptions/getFullUrl/action",
       "Microsoft.Web/sites/config/list/action",
       "Microsoft.ContainerService/managedClusters/listClusterUserCredential/action",
+      "Microsoft.Web/sites/host/listkeys/action",
+      "Microsoft.EventGrid/systemTopics/eventSubscriptions/getFullUrl/action",
+      "Microsoft.EventGrid/systemTopics/eventSubscriptions/getDeliveryAttributes/action",
     ]
   }
 
